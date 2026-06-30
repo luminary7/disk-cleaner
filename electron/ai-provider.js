@@ -30,6 +30,10 @@ class AIProvider {
       this.endpoint = config.endpoint || '';
       this.model = config.model || '';
     }
+    // 统一去掉末尾斜杠，避免拼接 path 时出现双斜杠
+    if (this.endpoint) {
+      this.endpoint = this.endpoint.replace(/\/+$/, '');
+    }
   }
 
   isConfigured() {
@@ -86,7 +90,9 @@ class AIProvider {
    * 分析大文件列表，判断每个文件是否建议删除
    */
   async analyzeFiles(files) {
-    if (!this.isConfigured()) return null;
+    if (!this.isConfigured()) {
+      throw new Error('AI 未配置，请先在设置中配置 API Key');
+    }
 
     const fileList = files
       .slice(0, 100)
@@ -107,29 +113,112 @@ class AIProvider {
   ]
 }`;
 
-    try {
-      const response = await this._request('/chat/completions', {
-        model: this.model,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: `请分析以下大文件：\n${fileList}` },
-        ],
-        max_tokens: 4000,
-        temperature: 0.3,
-      });
-      const content = response.choices?.[0]?.message?.content || null;
-      if (!content) return null;
-
-      // 尝试从内容中提取 JSON
-      const jsonMatch = content.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        return JSON.parse(jsonMatch[0]);
-      }
-      return null;
-    } catch (err) {
-      console.error('AI 分析文件失败:', err.message);
-      return null;
+    const response = await this._request('/chat/completions', {
+      model: this.model,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: `请分析以下大文件：\n${fileList}` },
+      ],
+      max_tokens: 4000,
+      temperature: 0.3,
+    });
+    const content = response.choices?.[0]?.message?.content || null;
+    if (!content) {
+      throw new Error('AI 返回内容为空，请检查 API 配置或重试');
     }
+
+    // 尝试从内容中提取 JSON
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      try {
+        const parsed = JSON.parse(jsonMatch[0]);
+        if (!parsed.analysis || !Array.isArray(parsed.analysis)) {
+          throw new Error('AI 返回格式异常：缺少 analysis 数组');
+        }
+        return parsed;
+      } catch (err) {
+        if (err instanceof SyntaxError) {
+          throw new Error('AI 返回的 JSON 格式无法解析，请重试');
+        }
+        throw err;
+      }
+    }
+    throw new Error('AI 响应中未找到有效的 JSON，请重试');
+  }
+
+  /**
+   * 分析单个文件，使用更详细的元信息
+   * @param {object} detail - 由 getFileDetail 返回的完整文件元信息
+   */
+  async analyzeSingleFile(detail) {
+    if (!this.isConfigured()) {
+      throw new Error('AI 未配置，请先在设置中配置 API Key');
+    }
+
+    const info = [
+      `文件名: ${detail.name}`,
+      `路径: ${detail.path}`,
+      `目录: ${detail.dir}`,
+      `扩展名: ${detail.ext}`,
+      `大小: ${detail.sizeFormatted} (${detail.size} 字节)`,
+      `创建时间: ${detail.created}`,
+      `修改时间: ${detail.modified}`,
+      `上次访问: ${detail.accessed}`,
+      `安全评级: ${
+        detail.safety === 'safe' ? '可安全删除' :
+        detail.safety === 'caution' ? '谨慎删除' : '建议保留'
+      }`,
+    ].join('\n');
+
+    const systemPrompt = `你是一个 Windows C 盘清理专家。用户提供了一个大文件的详细信息，你需要分析并给出是否建议删除的判断。
+
+请从以下角度分析：
+1. **文件类型** — 根据扩展名和路径判断是什么类型文件
+2. **用途推测** — 根据文件名、路径、创建时间等推测它的用途
+3. **安全性评估** — 是否为系统文件、是否可能被程序使用、删除风险高低
+4. **清理建议** — 是否建议删除，并给出具体理由
+
+请按以下 JSON 格式回复（不要包含其他内容）：
+
+{
+  "type": "文件类型",
+  "purpose": "详细用途说明",
+  "riskLevel": "low|medium|high",
+  "suggestDelete": true/false,
+  "reason": "建议删除或保留的详细理由",
+  "alternativeAction": "如果建议删除，可以说明是否可以先移动到回收站等"
+}`;
+
+    const response = await this._request('/chat/completions', {
+      model: this.model,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: `请分析以下文件：\n\n${info}` },
+      ],
+      max_tokens: 1500,
+      temperature: 0.3,
+    });
+    const content = response.choices?.[0]?.message?.content || null;
+    if (!content) {
+      throw new Error('AI 返回内容为空，请检查 API 配置或重试');
+    }
+
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      try {
+        const parsed = JSON.parse(jsonMatch[0]);
+        if (parsed.suggestDelete === undefined) {
+          throw new Error('AI 返回格式异常：缺少 suggestDelete 字段');
+        }
+        return parsed;
+      } catch (err) {
+        if (err instanceof SyntaxError) {
+          throw new Error('AI 返回的 JSON 格式无法解析，请重试');
+        }
+        throw err;
+      }
+    }
+    throw new Error('AI 响应中未找到有效的 JSON，请重试');
   }
 
   /**
@@ -183,9 +272,19 @@ class AIProvider {
         res.on('data', (chunk) => (data += chunk));
         res.on('end', () => {
           try {
-            resolve(JSON.parse(data));
-          } catch {
-            reject(new Error(`解析响应失败: ${data.slice(0, 200)}`));
+            const parsed = JSON.parse(data);
+            // 检查 HTTP 状态码，非 2xx 抛错
+            if (res.statusCode < 200 || res.statusCode >= 300) {
+              const errMsg = parsed?.error?.message || parsed?.error || `HTTP ${res.statusCode}`;
+              return reject(new Error(`API 错误 (${res.statusCode}): ${errMsg}`));
+            }
+            resolve(parsed);
+          } catch (err) {
+            if (err instanceof SyntaxError) {
+              reject(new Error(`解析响应失败: ${data.slice(0, 200)}`));
+            } else {
+              reject(err);
+            }
           }
         });
       });

@@ -40,6 +40,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveAIConfig: (config) => ipcRenderer.invoke('ai:save-config', config),
   getAIConfig: () => ipcRenderer.invoke('ai:get-config'),
   analyzeFiles: (files) => ipcRenderer.invoke('ai:analyze-files', files),
+  analyzeSingleFile: (item) => ipcRenderer.invoke('ai:analyze-single-file', item),
   saveAIPreset: (preset) => ipcRenderer.invoke('ai:save-preset', preset),
   getAIPresets: () => ipcRenderer.invoke('ai:get-presets'),
   deleteAIPreset: (name) => ipcRenderer.invoke('ai:delete-preset', name),

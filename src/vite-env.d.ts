@@ -47,6 +47,15 @@ declare global {
     createRestorePoint: boolean;
   }
 
+  interface SingleFileAnalysis {
+    type: string;
+    purpose: string;
+    riskLevel: 'low' | 'medium' | 'high';
+    suggestDelete: boolean;
+    reason: string;
+    alternativeAction?: string;
+  }
+
   interface ElectronAPI {
     startScan: () => Promise<ScanResult>;
     cancelScan: () => Promise<void>;
@@ -69,6 +78,7 @@ declare global {
     saveAIConfig: (config: AIConfig) => Promise<void>;
     getAIConfig: () => Promise<AIConfig>;
     analyzeFiles: (files: ScanItem[]) => Promise<{ analysis: Array<{ name: string; type: string; purpose: string; suggestDelete: boolean; reason: string }> } | null>;
+    analyzeSingleFile: (item: ScanItem) => Promise<SingleFileAnalysis>;
     saveAIPreset: (preset: AIConfig & { name: string }) => Promise<void>;
     getAIPresets: () => Promise<(AIConfig & { name: string })[]>;
     deleteAIPreset: (name: string) => Promise<void>;

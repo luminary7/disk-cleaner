@@ -12,6 +12,8 @@ import {
   Row,
   Drawer,
   Tooltip,
+  Descriptions,
+  Spin,
 } from 'antd';
 import {
   FileSearchOutlined,
@@ -20,6 +22,7 @@ import {
   RobotOutlined,
   CheckCircleOutlined,
   WarningOutlined,
+  LoadingOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 
@@ -68,6 +71,11 @@ export default function LargeFiles() {
   const [analyzing, setAnalyzing] = useState(false);
   const [analysisMap, setAnalysisMap] = useState<Map<string, FileAnalysis>>(new Map());
   const [drawerVisible, setDrawerVisible] = useState(false);
+
+  // 单文件 AI 分析
+  const [singleAnalysis, setSingleAnalysis] = useState<SingleFileAnalysis | null>(null);
+  const [singleModalVisible, setSingleModalVisible] = useState(false);
+  const [analyzingFileId, setAnalyzingFileId] = useState<string | null>(null);
 
   // 仅监听增量批次，用于实时滚动展示
   useEffect(() => {
@@ -164,6 +172,22 @@ export default function LargeFiles() {
     }
   };
 
+  const handleSingleAnalysis = async (item: ScanItem) => {
+    if (!window.electronAPI) return;
+    if (analyzingFileId) return; // 防止同时分析多个
+    setAnalyzingFileId(item.id);
+    setSingleAnalysis(null);
+    try {
+      const result = await window.electronAPI.analyzeSingleFile(item);
+      setSingleAnalysis(result);
+      setSingleModalVisible(true);
+    } catch (err: any) {
+      message.error(`分析失败: ${err?.message || '请检查 AI 配置'}`);
+    } finally {
+      setAnalyzingFileId(null);
+    }
+  };
+
   const getAnalysis = (name: string): FileAnalysis | undefined => {
     return analysisMap.get(name.toLowerCase());
   };
@@ -214,16 +238,31 @@ export default function LargeFiles() {
     {
       title: '操作',
       key: 'action',
-      render: (_: unknown, record: ScanItem) => (
-        <Button
-          type="link"
-          size="small"
-          icon={<FolderOpenOutlined />}
-          onClick={() => handleOpenLocation(record.path)}
-        >
-          打开位置
-        </Button>
-      ),
+      width: 200,
+      render: (_: unknown, record: ScanItem) => {
+        const isAnalyzing = analyzingFileId === record.id;
+        return (
+          <Space>
+            <Button
+              type="link"
+              size="small"
+              icon={isAnalyzing ? <LoadingOutlined /> : <RobotOutlined />}
+              disabled={!!analyzingFileId}
+              onClick={() => handleSingleAnalysis(record)}
+            >
+              {isAnalyzing ? '分析中...' : 'AI 分析'}
+            </Button>
+            <Button
+              type="link"
+              size="small"
+              icon={<FolderOpenOutlined />}
+              onClick={() => handleOpenLocation(record.path)}
+            >
+              打开位置
+            </Button>
+          </Space>
+        );
+      },
     },
   ];
 
@@ -357,6 +396,55 @@ export default function LargeFiles() {
           </>
         )}
       </Drawer>
+
+      {/* 单文件 AI 分析结果弹窗 */}
+      <Modal
+        title={
+          <Space>
+            <RobotOutlined />
+            AI 文件分析详情
+          </Space>
+        }
+        open={singleModalVisible}
+        onCancel={() => setSingleModalVisible(false)}
+        footer={
+          <Button onClick={() => setSingleModalVisible(false)}>关闭</Button>
+        }
+        width={640}
+      >
+        {!singleAnalysis ? (
+          <div style={{ textAlign: 'center', padding: 40 }}>
+            <Spin />
+          </div>
+        ) : (
+          <Descriptions column={1} bordered size="small" style={{ marginTop: 16 }}>
+            <Descriptions.Item label="文件类型">{singleAnalysis.type}</Descriptions.Item>
+            <Descriptions.Item label="用途说明">{singleAnalysis.purpose}</Descriptions.Item>
+            <Descriptions.Item label="风险等级">
+              <Tag
+                color={
+                  singleAnalysis.riskLevel === 'low' ? 'success' :
+                  singleAnalysis.riskLevel === 'medium' ? 'warning' : 'error'
+                }
+              >
+                {singleAnalysis.riskLevel === 'low' ? '低风险' :
+                 singleAnalysis.riskLevel === 'medium' ? '中风险' : '高风险'}
+              </Tag>
+            </Descriptions.Item>
+            <Descriptions.Item label="建议操作">
+              {singleAnalysis.suggestDelete ? (
+                <Tag color="error" icon={<WarningOutlined />}>建议删除</Tag>
+              ) : (
+                <Tag color="success" icon={<CheckCircleOutlined />}>建议保留</Tag>
+              )}
+            </Descriptions.Item>
+            <Descriptions.Item label="详细理由">{singleAnalysis.reason}</Descriptions.Item>
+            {singleAnalysis.alternativeAction && (
+              <Descriptions.Item label="替代方案">{singleAnalysis.alternativeAction}</Descriptions.Item>
+            )}
+          </Descriptions>
+        )}
+      </Modal>
     </div>
   );
 }

@@ -3,6 +3,7 @@ const path = require('path');
 const scanner = require('./scanner');
 const fileOperator = require('./file-operator');
 const { AIProvider } = require('./ai-provider');
+const { getFileDetail } = require('./file-detail');
 const Store = require('./store');
 const logger = require('./logger');
 
@@ -135,6 +136,11 @@ function registerIPC() {
 
   ipcMain.handle('ai:analyze-files', async (_event, files) => {
     return await aiProvider.analyzeFiles(files);
+  });
+
+  ipcMain.handle('ai:analyze-single-file', async (_event, item) => {
+    const detail = await getFileDetail(item.path, item);
+    return await aiProvider.analyzeSingleFile(detail);
   });
 
   // ========= AI 配置预设 =========
