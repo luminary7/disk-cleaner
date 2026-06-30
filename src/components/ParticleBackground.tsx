@@ -191,7 +191,7 @@ export default function ParticleBackground({ phase }: Props) {
 
     // ---- 动画循环 ----
     function tick(_time: number, deltaTime: number) {
-      const dt = Math.min(deltaTime / 16, 3);
+      const dt = Math.min(deltaTime * 60, 3);
       const cfg = CFG[phaseRef.current];
       const { w: W, h: H } = sizeRef.current;
       const cx = W / 2;
