@@ -1,0 +1,98 @@
+<h2>粒子动态背景 — 方案概览</h2>
+<p class="subtitle">整体构思：在首页现有蓝色渐变背景之上，叠加一层 Canvas 粒子系统，用 GSAP 驱动动画</p>
+
+<div class="section">
+  <h3>🎯 核心设计理念</h3>
+  <div class="pros-cons" style="grid-template-columns: 1fr;">
+    <div class="pros">
+      <ul>
+        <li><strong>克制</strong> — 粒子作为氛围点缀，不抢内容风头，保持工具类应用的清爽感</li>
+        <li><strong>有意义</strong> — 粒子的运动随扫描/清理阶段变化，让背景"活起来"</li>
+        <li><strong>高性能</strong> — Canvas 渲染 + GSAP ticker，对 Electron 资源占用极低</li>
+        <li><strong>已就绪</strong> — GSAP 3.15 已安装，零额外依赖</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>🏗 整体架构</h3>
+  <div class="mockup">
+    <div class="mockup-header">页面层级</div>
+    <div class="mockup-body" style="padding: 16px; display: flex; flex-direction: column; gap: 4px;">
+      <div style="background: #e6f4ff; border: 1px dashed #1677ff; border-radius: 8px; padding: 20px; text-align: center;">
+        <strong style="color:#1677ff;">ParticleBackground (Canvas)</strong><br>
+        <span style="font-size: 12px; color: #666;">position: fixed; z-index: 0; pointer-events: none</span>
+      </div>
+      <div style="text-align: center; font-size: 20px;">⬇</div>
+      <div style="background: #f0f5ff; border: 1px solid #d9d9d9; border-radius: 8px; padding: 20px; text-align: center;">
+        <strong>SimpleMode 页面内容</strong><br>
+        <span style="font-size: 12px; color: #666;">z-index: 1; 透明背景，粒子从下方透出</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>粒子类型 — 你觉得哪种风格更合适？</h3>
+  <div class="cards" style="grid-template-columns: repeat(3, 1fr);">
+    <div class="card" data-choice="dots" onclick="toggleSelect(this)">
+      <div class="card-body" style="text-align:center;">
+        <div style="font-size:48px; margin-bottom:8px;">●</div>
+        <h3>纯圆点</h3>
+        <p style="font-size:13px; color:#666;">大小不一的半透明蓝色圆点，缓慢浮动<br><strong>最克制、最百搭</strong></p>
+      </div>
+    </div>
+    <div class="card" data-choice="glow" onclick="toggleSelect(this)">
+      <div class="card-body" style="text-align:center;">
+        <div style="font-size:48px; margin-bottom:8px; filter: blur(3px);">●</div>
+        <h3>光晕粒子</h3>
+        <p style="font-size:13px; color:#666;">模糊光斑效果，像星空或尘埃<br><strong>更柔和、更有氛围感</strong></p>
+      </div>
+    </div>
+    <div class="card" data-choice="line" onclick="toggleSelect(this)">
+      <div class="card-body" style="text-align:center;">
+        <div style="font-size:24px; margin-bottom:8px; letter-spacing: 8px;">. . .</div>
+        <h3>连线粒子</h3>
+        <p style="font-size:13px; color:#666;">粒子之间绘制连线，形成网络<br><strong>科技感最强、更动态</strong></p>
+      </div>
+    </div>
+  </div>
+  <p style="font-size: 12px; color: #999; margin-top: 8px;">👉 在浏览器中点击选择你喜欢的风格</p>
+</div>
+
+<div class="section">
+  <h3>阶段联动行为（选了风格后再细聊）</h3>
+  <table style="width:100%; border-collapse: collapse; font-size: 13px;">
+    <tr style="background: #f5f5f5;">
+      <th style="padding: 8px 12px; text-align:left; border-bottom: 1px solid #d9d9d9;">页面阶段</th>
+      <th style="padding: 8px 12px; text-align:left; border-bottom: 1px solid #d9d9d9;">粒子行为</th>
+      <th style="padding: 8px 12px; text-align:left; border-bottom: 1px solid #d9d9d9;">氛围</th>
+    </tr>
+    <tr>
+      <td style="padding: 8px 12px; border-bottom: 1px solid #f0f0f0;"><strong>idle</strong> 待机</td>
+      <td style="padding: 8px 12px; border-bottom: 1px solid #f0f0f0;">缓慢漂浮，随鼠标微动</td>
+      <td style="padding: 8px 12px; border-bottom: 1px solid #f0f0f0;">🌊 宁静</td>
+    </tr>
+    <tr>
+      <td style="padding: 8px 12px; border-bottom: 1px solid #f0f0f0;"><strong>scanning</strong> 扫描</td>
+      <td style="padding: 8px 12px; border-bottom: 1px solid #f0f0f0;">流速加快，向中心汇聚</td>
+      <td style="padding: 8px 12px; border-bottom: 1px solid #f0f0f0;">⚡ 聚焦</td>
+    </tr>
+    <tr>
+      <td style="padding: 8px 12px; border-bottom: 1px solid #f0f0f0;"><strong>cleaning</strong> 清理</td>
+      <td style="padding: 8px 12px; border-bottom: 1px solid #f0f0f0;">向下沉降，逐渐淡出</td>
+      <td style="padding: 8px 12px; border-bottom: 1px solid #f0f0f0;">🧹 消散</td>
+    </tr>
+    <tr>
+      <td style="padding: 8px 12px; border-bottom: 1px solid #f0f0f0;"><strong>clean-done</strong> 完成</td>
+      <td style="padding: 8px 12px; border-bottom: 1px solid #f0f0f0;">向外扩散 + 光晕绽放</td>
+      <td style="padding: 8px 12px; border-bottom: 1px solid #f0f0f0;">🎉 庆祝</td>
+    </tr>
+    <tr>
+      <td style="padding: 8px 12px;"><strong>error</strong> 错误</td>
+      <td style="padding: 8px 12px;">振动 + 混乱布朗运动</td>
+      <td style="padding: 8px 12px;">⚠️ 警示</td>
+    </tr>
+  </table>
+</div>

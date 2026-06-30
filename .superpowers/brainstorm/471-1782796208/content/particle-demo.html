@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>连线粒子 Demo v3</title>
+<script src="https://unpkg.com/gsap@3.12.5/dist/gsap.min.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: linear-gradient(135deg, #f0f5ff 0%, #e6f7ff 100%);
+  height: 100vh; width: 100vw; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+}
+#canvas {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw; height: 100vh;
+  pointer-events: none;
+  z-index: 1;
+}
+.content {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  pointer-events: none;
+}
+.content h1 { font-size: 36px; color: #1a1a1a; margin-bottom: 8px; }
+.content p { font-size: 16px; color: #666; }
+.controls {
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.controls button {
+  padding: 8px 18px;
+  border: 1px solid #d9d9d9;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: blur(4px);
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.2s;
+  color: #333;
+}
+.controls button:hover { border-color: #1677ff; color: #1677ff; }
+.controls button.active {
+  background: #1677ff;
+  color: #fff;
+  border-color: #1677ff;
+}
+.status-bar {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: blur(8px);
+  padding: 6px 18px;
+  border-radius: 20px;
+  font-size: 13px;
+  color: #666;
+  border: 1px solid #e8e8e8;
+}
+</style>
+</head>
+<body>
+
+  <span class="status-bar" id="statusBar">🌊 idle — 粒子缓慢漂浮</span>
+
+  <canvas id="canvas"></canvas>
+
+  <div class="content">
+    <h1>C盘智能清理</h1>
+    <p>移动鼠标与粒子交互 · 点击下方按钮切换阶段</p>
+  </div>
+
+  <div class="controls">
+    <button data-phase="idle" class="active">🌊 idle</button>
+    <button data-phase="scanning">⚡ scanning</button>
+    <button data-phase="scan-done">✅ scan-done</button>
+    <button data-phase="cleaning">🧹 cleaning</button>
+    <button data-phase="clean-done">🎉 clean-done</button>
+    <button data-phase="error">⚠️ error</button>
+  </div>
+
+<script>
+const PARTICLE_COUNT = 55;
+const CONNECT_DIST = 130;
+const COLORS = ['#1677ff', '#69b1ff', '#91caff', '#bae0ff'];
+
+const state = {
+  phase: 'idle',
+  mouseX: -9999, mouseY: -9999,
+  particles: [],
+  width: 0, height: 0,
+  scanLineY: 0,
+  centerPulse: 0, // for scan-done center glow
+};
+
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+// ===== Particle =====
+class Particle {
+  constructor() {
+    this.x = Math.random() * state.width;
+    this.y = Math.random() * state.height;
+    this.size = Math.random() * 3 + 1.5;
+    this.baseSize = this.size;
+    this.color = COLORS[Math.floor(Math.random() * COLORS.length)];
+    this.alpha = Math.random() * 0.4 + 0.25;
+    this.baseAlpha = this.alpha;
+    this.glowIntensity = 0;
+    this.baseVx = (Math.random() - 0.5) * 0.4;
+    this.baseVy = (Math.random() - 0.5) * 0.4 - 0.1;
+    this.vx = this.baseVx;
+    this.vy = this.baseVy;
+  }
+  /** Reset to center with random outward direction (for scan-done rebirth) */
+  reborn() {
+    const angle = Math.random() * Math.PI * 2;
+    const dist = Math.random() * 40;
+    this.x = state.width / 2 + Math.cos(angle) * dist;
+    this.y = state.height / 2 + Math.sin(angle) * dist;
+    this.alpha = 0;
+    this.glowIntensity = 0.4;
+    this.size = 1;
+    // 随机向四面八方出发
+    this.baseVx = Math.cos(angle) * (Math.random() * 0.4 + 0.2);
+    this.baseVy = Math.sin(angle) * (Math.random() * 0.4 + 0.2);
+  }
+}
+
+// ===== Init =====
+function resize() {
+  state.width = canvas.width = window.innerWidth;
+  state.height = canvas.height = window.innerHeight;
+  state.scanLineY = state.height + 20;
+}
+window.addEventListener('resize', resize);
+resize();
+
+for (let i = 0; i < PARTICLE_COUNT; i++) {
+  state.particles.push(new Particle());
+}
+
+// ===== Mouse =====
+window.addEventListener('mousemove', e => {
+  const rect = canvas.getBoundingClientRect();
+  state.mouseX = e.clientX - rect.left;
+  state.mouseY = e.clientY - rect.top;
+});
+window.addEventListener('mouseleave', () => {
+  state.mouseX = -9999; state.mouseY = -9999;
+});
+
+// ===== Phase Machine =====
+const PHASES = {
+  idle: {
+    label: '🌊 idle — 粒子缓慢漂浮',
+    speed: 0.3,
+    vxMul: 0.6, vyBias: 0,
+    mouseRadius: 150, mouseForce: 0.5,
+  },
+  scanning: {
+    label: '⚡ scanning — 扫描线扫过，粒子被点亮',
+    speed: 0.6,
+    vxMul: 0.8, vyBias: -0.05,
+    mouseRadius: 180, mouseForce: 1.0,
+    scanline: true,
+    scanSpeed: 0.4,
+    glowDecay: 0.97,
+  },
+  'scan-done': {
+    label: '✅ scan-done — 粒子向全屏扩散，新粒子从中心不断涌现',
+    speed: 0.35,
+    vxMul: 0.15, vyBias: 0,
+    mouseRadius: 130, mouseForce: 0.4,
+    spreadOut: 0.003,
+    rebirth: true,
+    rebirthRate: 0.0006,
+    maxAlpha: 0.55,
+  },
+  cleaning: {
+    label: '🧹 cleaning — 粒子沉降淡出',
+    speed: 1.2,
+    vxMul: 0.5, vyBias: 1.2,
+    mouseRadius: 180, mouseForce: 1.5,
+    fadeOut: 0.005,
+  },
+  'clean-done': {
+    label: '🎉 clean-done — 绽放庆祝',
+    speed: 0.3,
+    vxMul: 2, vyBias: -0.5,
+    mouseRadius: 250, mouseForce: 3,
+    burst: true,
+  },
+  error: {
+    label: '⚠️ error — 粒子震动混乱',
+    speed: 2.5,
+    vxMul: 3, vyBias: 0,
+    mouseRadius: 100, mouseForce: 4,
+    shake: 2,
+  },
+};
+
+function setPhase(phase) {
+  state.phase = phase;
+  const cfg = PHASES[phase];
+  document.getElementById('statusBar').textContent = cfg.label;
+
+  document.querySelectorAll('.controls button').forEach(b => {
+    b.classList.toggle('active', b.dataset.phase === phase);
+  });
+
+  if (phase === 'scanning') {
+    state.scanLineY = state.height + 20;
+  }
+
+  // Burst for clean-done
+  if (cfg.burst) {
+    state.particles.forEach(p => {
+      const angle = Math.random() * Math.PI * 2;
+      const dist = Math.random() * 300 + 100;
+      const tx = state.width/2 + Math.cos(angle) * dist;
+      const ty = state.height/2 + Math.sin(angle) * dist;
+      gsap.to(p, {
+        x: tx, y: ty,
+        duration: 1.2, ease: 'power2.out', overwrite: 'auto',
+      });
+      gsap.to(p, {
+        size: p.baseSize * 4,
+        duration: 0.6, ease: 'power2.out', yoyo: true, repeat: 1, overwrite: 'auto',
+      });
+    });
+  }
+}
+
+document.querySelectorAll('.controls button').forEach(btn => {
+  btn.addEventListener('click', () => setPhase(btn.dataset.phase));
+});
+
+// ===== GSAP Ticker =====
+function tick(time, deltaTime) {
+  const cfg = PHASES[state.phase];
+  const dt = Math.min(deltaTime / 16, 3);
+  const w = state.width;
+  const h = state.height;
+  const cx = w / 2;
+  const cy = h / 2;
+  const mx = state.mouseX;
+  const my = state.mouseY;
+
+  // Update particles
+  state.particles.forEach(p => {
+    let vx = p.baseVx * cfg.vxMul;
+    let vy = p.baseVy * cfg.vxMul + cfg.vyBias;
+
+    if (cfg.pullCenter) {
+      vx += (cx - p.x) * cfg.pullCenter;
+      vy += (cy - p.y) * cfg.pullCenter;
+    }
+    if (cfg.spreadOut) {
+      vx += (p.x - cx) * cfg.spreadOut;
+      vy += (p.y - cy) * cfg.spreadOut;
+    }
+    if (cfg.fadeOut) {
+      p.alpha = Math.max(0, p.alpha - cfg.fadeOut * dt);
+      if (p.alpha <= 0) {
+        p.x = Math.random() * w;
+        p.y = -10;
+        p.alpha = p.baseAlpha;
+      }
+    } else {
+      p.alpha += (p.baseAlpha - p.alpha) * 0.02 * dt;
+    }
+    if (cfg.shake) {
+      vx += (Math.random() - 0.5) * cfg.shake;
+      vy += (Math.random() - 0.5) * cfg.shake;
+    }
+
+    // Mouse interaction
+    const mdx = p.x - mx;
+    const mdy = p.y - my;
+    const mdist = Math.sqrt(mdx * mdx + mdy * mdy);
+    if (mdist < cfg.mouseRadius && mdist > 0) {
+      const force = (1 - mdist / cfg.mouseRadius) * cfg.mouseForce;
+      vx += (mdx / mdist) * force;
+      vy += (mdy / mdist) * force;
+    }
+
+    p.x += vx * dt * cfg.speed;
+    p.y += vy * dt * cfg.speed;
+
+    if (p.x < -20) p.x = w + 20;
+    if (p.x > w + 20) p.x = -20;
+    if (p.y < -20) p.y = h + 20;
+    if (p.y > h + 20) p.y = -20;
+  });
+
+  // ===== Scanline (scanning) =====
+  if (cfg.scanline) {
+    state.scanLineY -= cfg.scanSpeed * dt;
+    if (state.scanLineY < -20) state.scanLineY = h + 20;
+
+    state.particles.forEach(p => {
+      const distToLine = Math.abs(p.y - state.scanLineY);
+      if (distToLine < 40) {
+        const intensity = 1 - (distToLine / 40);
+        p.glowIntensity = Math.min(1, p.glowIntensity + intensity * 0.3);
+        p.alpha = Math.min(1, p.baseAlpha + intensity * 0.6);
+        p.vx += (Math.random() - 0.5) * 0.3 * intensity;
+        p.vy += (Math.random() - 0.5) * 0.3 * intensity;
+      }
+      p.glowIntensity *= cfg.glowDecay;
+      p.alpha = Math.min(1, p.baseAlpha + p.glowIntensity * 0.7);
+    });
+  }
+
+  // ===== Rebirth (scan-done) — new particles emerge from center =====
+  if (cfg.rebirth) {
+    state.particles.forEach(p => {
+      // 粒子扩散到较远位置后，有小概率重生回中心
+      const distFromCenter = Math.sqrt((p.x - cx) ** 2 + (p.y - cy) ** 2);
+      const threshold = Math.max(w, h) * 0.5;
+      if (distFromCenter > threshold && Math.random() < cfg.rebirthRate * dt) {
+        p.reborn();
+      }
+      // Fade in newly reborn particles
+      if (p.alpha < cfg.maxAlpha) {
+        p.alpha = Math.min(cfg.maxAlpha, p.alpha + 0.02 * dt);
+      }
+      // Grow size back
+      if (p.size < p.baseSize) {
+        p.size = Math.min(p.baseSize, p.size + 0.05 * dt);
+      }
+      p.glowIntensity *= 0.98;
+    });
+
+    // Center glow pulse
+    state.centerPulse += 0.03 * dt;
+  } else {
+    state.centerPulse = 0;
+  }
+
+  // ===== Draw =====
+  ctx.clearRect(0, 0, w, h);
+
+  // Center glow for scan-done
+  if (cfg.rebirth && state.centerPulse > 0) {
+    const pulse = Math.sin(state.centerPulse * 2) * 0.15 + 0.3;
+    const cg = ctx.createRadialGradient(cx, cy, 0, cx, cy, 120);
+    cg.addColorStop(0, `rgba(22, 119, 255, ${pulse * 0.3})`);
+    cg.addColorStop(1, 'rgba(22, 119, 255, 0)');
+    ctx.beginPath();
+    ctx.arc(cx, cy, 120, 0, Math.PI * 2);
+    ctx.fillStyle = cg;
+    ctx.fill();
+  }
+
+  // Lines between particles
+  for (let i = 0; i < state.particles.length; i++) {
+    for (let j = i + 1; j < state.particles.length; j++) {
+      const a = state.particles[i];
+      const b = state.particles[j];
+      const dx = a.x - b.x;
+      const dy = a.y - b.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < CONNECT_DIST) {
+        const glowAvg = (a.glowIntensity + b.glowIntensity) / 2;
+        const alpha = (1 - dist / CONNECT_DIST) * (0.2 + glowAvg * 0.5);
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.strokeStyle = `rgba(22, 119, 255, ${alpha})`;
+        ctx.lineWidth = 0.6 + glowAvg * 1.5;
+        ctx.stroke();
+      }
+    }
+  }
+
+  // Draw particles
+  state.particles.forEach(p => {
+    const alpha = Math.min(1, Math.max(0, p.alpha));
+    const radius = p.size + p.glowIntensity * 3;
+
+    if (p.glowIntensity > 0.05) {
+      const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, radius * 4);
+      gradient.addColorStop(0, `rgba(22, 119, 255, ${p.glowIntensity * 0.3})`);
+      gradient.addColorStop(1, 'rgba(22, 119, 255, 0)');
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, radius * 4, 0, Math.PI * 2);
+      ctx.fillStyle = gradient;
+      ctx.fill();
+    }
+
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(22, 119, 255, ${alpha})`;
+    ctx.fill();
+
+    if (p.glowIntensity > 0.1) {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, radius * 0.5, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255, 255, 255, ${p.glowIntensity * 0.6})`;
+      ctx.fill();
+    }
+  });
+
+  // Draw scanline
+  if (cfg.scanline) {
+    const slY = state.scanLineY;
+    const grad = ctx.createLinearGradient(0, slY - 30, 0, slY + 30);
+    grad.addColorStop(0, 'rgba(22, 119, 255, 0)');
+    grad.addColorStop(0.5, 'rgba(22, 119, 255, 0.15)');
+    grad.addColorStop(1, 'rgba(22, 119, 255, 0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, slY - 30, w, 60);
+
+    ctx.beginPath();
+    ctx.moveTo(0, slY);
+    ctx.lineTo(w, slY);
+    ctx.strokeStyle = `rgba(22, 119, 255, 0.25)`;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
+}
+
+gsap.ticker.add(tick);
+
+document.addEventListener('keydown', e => {
+  const phases = ['idle', 'scanning', 'scan-done', 'cleaning', 'clean-done', 'error'];
+  const idx = phases.indexOf(state.phase);
+  if (e.key === 'ArrowRight' && idx < phases.length - 1) setPhase(phases[idx + 1]);
+  if (e.key === 'ArrowLeft' && idx > 0) setPhase(phases[idx - 1]);
+});
+
+gsap.ticker.lagSmoothing(0);
+</script>
+</body>
+</html>

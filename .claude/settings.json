@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/7号/.claude/skills/brainstorming/**)",
+      "Read(//c/Users/7号/.agents/skills/brainstorming/**)"
+    ]
+  }
+}

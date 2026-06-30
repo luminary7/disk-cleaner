@@ -1,0 +1,70 @@
+<h2>模块 1/6：品牌 Logo</h2>
+<p class="subtitle">用于标题栏、侧边栏顶部，作为应用的视觉标识</p>
+
+<div class="section">
+  <h3>设计思路</h3>
+  <p>渐变抽象风格 + 磁盘清理主题。用渐变几何图形组合表达：</p>
+  <ul>
+    <li><strong>圆/光环</strong> — 代表磁盘/存储</li>
+    <li><strong>箭头/扫掠线条</strong> — 代表清理/优化</li>
+    <li><strong>渐变色</strong> — 沿用当前 <span style="color:#1677ff">蓝</span> → <span style="color:#52c41a">绿</span> 体系</li>
+  </ul>
+</div>
+
+<div class="section">
+  <h3>Logo 方案对比</h3>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="logo-a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>圆盘 + 扫掠弧</h3>
+      <div style="display:flex;align-items:center;gap:16px;margin:12px 0">
+        <!-- mockup logo -->
+        <div style="width:64px;height:64px;border-radius:50%;background:conic-gradient(from 0deg, #1677ff, #52c41a, #1677ff);flex-shrink:0;display:flex;align-items:center;justify-content:center">
+          <div style="width:28px;height:28px;border-radius:50%;background:#fff"></div>
+        </div>
+        <div style="font-size:24px;font-weight:700;background:linear-gradient(135deg,#1677ff,#52c41a);-webkit-background-clip:text;-webkit-text-fill-color:transparent">C盘清理</div>
+      </div>
+      <p>圆盘代表磁盘，渐变色弧线代表扫过的清理轨迹。简洁识别度高。</p>
+    </div>
+  </div>
+  <div class="option" data-choice="logo-b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>盾牌 + 对勾</h3>
+      <div style="display:flex;align-items:center;gap:16px;margin:12px 0">
+        <!-- mockup logo -->
+        <div style="width:64px;height:64px;position:relative;flex-shrink:0">
+          <div style="width:64px;height:64px;background:linear-gradient(135deg,#1677ff,#52c41a);border-radius:16px;display:flex;align-items:center;justify-content:center">
+            <div style="color:#fff;font-size:32px">✓</div>
+          </div>
+        </div>
+        <div style="font-size:24px;font-weight:700;background:linear-gradient(135deg,#1677ff,#52c41a);-webkit-background-clip:text;-webkit-text-fill-color:transparent">C盘清理</div>
+      </div>
+      <p>盾牌代表安全清理，对勾代表已完成。更偏向安全感的传达。</p>
+    </div>
+  </div>
+  <div class="option" data-choice="logo-c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>抽象旋风</h3>
+      <div style="display:flex;align-items:center;gap:16px;margin:12px 0">
+        <!-- mockup logo -->
+        <div style="width:64px;height:64px;flex-shrink:0;display:flex;align-items:center;justify-content:center">
+          <div style="width:56px;height:56px;position:relative">
+            <div style="position:absolute;inset:0;border-radius:50%;border:4px solid #1677ff;border-top-color:#52c41a;animation:spin 2s linear infinite"></div>
+            <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:16px;height:16px;border-radius:50%;background:linear-gradient(135deg,#1677ff,#52c41a)"></div>
+          </div>
+        </div>
+        <div style="font-size:24px;font-weight:700;background:linear-gradient(135deg,#1677ff,#52c41a);-webkit-background-clip:text;-webkit-text-fill-color:transparent">C盘清理</div>
+      </div>
+      <p>旋转旋风代表"吸走垃圾"，动态感强。但静止 Logo 中旋转感不易体现。</p>
+    </div>
+  </div>
+</div>
+
+<style>
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
