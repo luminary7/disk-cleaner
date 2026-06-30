@@ -396,17 +396,100 @@ export default function SpaceOverview() {
             style={{
               marginBottom: 16,
               border: 'none',
-              background: 'linear-gradient(135deg, #dce8f5 0%, #d8f0ec 100%)',
+              background: '#241832',
+              boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.08), 0 18px 44px rgba(42,24,61,0.16)',
               position: 'relative',
               overflow: 'hidden',
             }}
+            styles={{ body: { padding: 0 } }}
           >
-            <div style={{ position: 'absolute', inset: 0, zIndex: 0 }}>
-              <FloatingLines animationSpeed={0.6} linesGradient={['#b8cce0', '#c8dce4']} />
+            <div style={{ position: 'absolute', inset: 0, zIndex: 0, opacity: 0.96 }}>
+              <FloatingLines
+                animationSpeed={0.72}
+                enabledWaves={['top', 'middle', 'bottom']}
+                lineCount={[8, 8, 7]}
+                lineDistance={[8, 8, 7]}
+                topWavePosition={{ x: 10.0, y: 0.38, rotate: -0.32 }}
+                middleWavePosition={{ x: 5.0, y: -0.02, rotate: 0.18 }}
+                bottomWavePosition={{ x: 2.0, y: -0.52, rotate: 0.42 }}
+                linesGradient={['#fff7ff', '#ff7af6', '#b78cff', '#ffffff']}
+                mixBlendMode="screen"
+              />
             </div>
-            <div style={{ textAlign: 'center', padding: '60px 0', position: 'relative', zIndex: 1 }}>
-              <Title level={3} style={{ margin: 0, color: '#1a1a2e' }}>欢迎使用 C 盘智能清理</Title>
-              <Text style={{ fontSize: 14, color: '#4a4a5e', display: 'block', marginTop: 8 }}>
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                zIndex: 0,
+                background:
+                  'radial-gradient(circle at 50% 48%, rgba(184,112,255,0.22) 0%, rgba(77,46,103,0.34) 34%, rgba(27,18,39,0.66) 100%), linear-gradient(135deg, rgba(83,51,110,0.62) 0%, rgba(40,25,56,0.44) 48%, rgba(31,19,44,0.68) 100%)',
+              }}
+            />
+            <div
+              style={{
+                position: 'absolute',
+                left: '-8%',
+                right: '-8%',
+                top: '52%',
+                height: 7,
+                zIndex: 0,
+                transform: 'rotate(7deg)',
+                background:
+                  'linear-gradient(90deg, transparent 0%, rgba(181,124,255,0.45) 18%, rgba(255,111,244,0.9) 42%, rgba(255,255,255,0.95) 50%, rgba(255,111,244,0.86) 58%, rgba(181,124,255,0.42) 82%, transparent 100%)',
+                boxShadow:
+                  '0 0 18px rgba(255,111,244,0.78), 0 0 38px rgba(174,119,255,0.48), 0 0 72px rgba(255,255,255,0.22)',
+              }}
+            />
+            <div
+              style={{
+                position: 'absolute',
+                left: '-8%',
+                right: '-8%',
+                top: '52%',
+                height: 34,
+                zIndex: 0,
+                transform: 'translateY(-38%) rotate(7deg)',
+                background:
+                  'linear-gradient(90deg, transparent 0%, rgba(181,124,255,0.14) 18%, rgba(255,111,244,0.28) 46%, rgba(255,255,255,0.2) 52%, rgba(181,124,255,0.16) 82%, transparent 100%)',
+                filter: 'blur(10px)',
+              }}
+            />
+            <div
+              style={{
+                textAlign: 'center',
+                minHeight: 276,
+                padding: '72px 24px',
+                position: 'relative',
+                zIndex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                textShadow: '0 4px 24px rgba(0,0,0,0.52)',
+              }}
+            >
+              <Title
+                level={2}
+                style={{
+                  margin: 0,
+                  color: '#ffffff',
+                  fontWeight: 800,
+                  fontSize: 38,
+                  lineHeight: 1.12,
+                  textWrap: 'balance',
+                }}
+              >
+                欢迎使用 C 盘智能清理
+              </Title>
+              <Text
+                style={{
+                  fontSize: 15,
+                  color: 'rgba(255,255,255,0.76)',
+                  display: 'block',
+                  marginTop: 12,
+                  fontWeight: 500,
+                }}
+              >
                 一键扫描并安全清理磁盘垃圾文件，释放宝贵的存储空间
               </Text>
             </div>

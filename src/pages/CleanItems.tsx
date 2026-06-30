@@ -192,7 +192,7 @@ export default function CleanItems() {
     <div>
       <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
         <Space>
-          <img src={safeCleanImg} alt="逐项清理" style={{ width: 32, height: 32, borderRadius: 6 }} />
+          <img src={safeCleanImg} alt="逐项清理" style={{ width: 40,  borderRadius: 6 }} />
           <Title level={4} style={{ margin: 0 }}>逐项清理</Title>
           {loading && (
             <Text type="secondary" style={{ fontSize: 13 }}>
@@ -226,8 +226,51 @@ export default function CleanItems() {
         </Space>
       </Row>
 
-      <Card>
-        <Table
+      {items.length === 0 && !loading ? (
+        <Card>
+          <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+            <img src={safeCleanImg} alt="逐项清理" style={{ width: 200, height: 'auto', marginBottom: 16 }} />
+            <Title level={4} style={{ margin: '0 0 6px' }}>逐项清理</Title>
+            <Text type="secondary" style={{ fontSize: 14, display: 'block', marginBottom: 28, maxWidth: 420, margin: '0 auto 28px' }}>
+              勾选需要清理的项目，逐项确认后再批量删除，更加安全可控
+            </Text>
+            <Button type="primary" size="large" icon={<ScanOutlined />} onClick={handleScan} loading={loading}>
+              开始扫描
+            </Button>
+
+            <div style={{ marginTop: 40, display: 'flex', justifyContent: 'center', gap: 16, flexWrap: 'wrap' }}>
+              {[
+                { key: 'temp', label: '临时文件', icon: tempCacheImg, desc: '系统及应用运行缓存' },
+                { key: 'browser', label: '浏览器缓存', icon: browserCacheImg, desc: '浏览记录及缓存' },
+                { key: 'app', label: '应用缓存', icon: appCacheImg, desc: '第三方应用数据' },
+                { key: 'system', label: '系统文件', icon: systemCacheImg, desc: '系统更新残留' },
+                { key: 'large-file', label: '大文件', icon: largeFileImg, desc: '占用空间较大的文件' },
+              ].map((cat) => (
+                <div
+                  key={cat.key}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: '8px 12px',
+                    background: '#fafafa',
+                    borderRadius: 8,
+                    border: '1px solid #f0f0f0',
+                  }}
+                >
+                  <img src={cat.icon} alt={cat.label} style={{ width: 28, height: 28, borderRadius: 4, objectFit: 'cover' }} />
+                  <div style={{ textAlign: 'left' }}>
+                    <div style={{ fontSize: 12, fontWeight: 500, color: '#262626' }}>{cat.label}</div>
+                    <div style={{ fontSize: 11, color: '#8c8c8c' }}>{cat.desc}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </Card>
+      ) : (
+        <Card>
+          <Table
           dataSource={items}
           columns={columns}
           rowKey="id"
@@ -240,6 +283,7 @@ export default function CleanItems() {
           }}
         />
       </Card>
+      )}
     </div>
   );
 }

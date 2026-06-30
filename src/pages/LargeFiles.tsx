@@ -399,8 +399,50 @@ export default function LargeFiles() {
         </Space>
       </Row>
 
-      <Card>
-        <Table
+      {files.length === 0 && !loading ? (
+        <Card>
+          <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+            <img src={largeFileImg} alt="大文件分析" style={{ width: 120, height: 'auto', marginBottom: 16 }} />
+            <Title level={4} style={{ margin: '0 0 6px' }}>大文件分析</Title>
+            <Text type="secondary" style={{ fontSize: 14, display: 'block', marginBottom: 28, maxWidth: 420, margin: '0 auto 28px' }}>
+              扫描磁盘中占用空间较大的文件，按类型分类查看，选择性清理
+            </Text>
+            <Button type="primary" size="large" icon={<FileSearchOutlined />} onClick={handleScan} loading={loading}>
+              开始扫描
+            </Button>
+
+            <div style={{ marginTop: 40, display: 'flex', justifyContent: 'center', gap: 16, flexWrap: 'wrap' }}>
+              {[
+                { label: '缓存文件', ext: 'tmp / log / cache', color: '#faad14' },
+                { label: '数据文件', ext: 'db / sqlite / mdb', color: '#ff4d4f' },
+                { label: '安装包', ext: 'zip / rar / iso', color: '#1677ff' },
+                { label: '视频文件', ext: 'mp4 / avi / mkv', color: '#722ed1' },
+                { label: '文档文件', ext: 'pdf / doc / csv', color: '#2f54eb' },
+              ].map((cat) => (
+                <div
+                  key={cat.label}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: 4,
+                    padding: '12px 16px',
+                    background: '#fafafa',
+                    borderRadius: 8,
+                    border: '1px solid #f0f0f0',
+                    minWidth: 100,
+                  }}
+                >
+                  <div style={{ fontSize: 13, fontWeight: 500, color: cat.color }}>{cat.label}</div>
+                  <div style={{ fontSize: 11, color: '#8c8c8c' }}>{cat.ext}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </Card>
+      ) : (
+        <Card>
+          <Table
           dataSource={filteredFiles}
           columns={columns}
           rowKey="id"
@@ -420,6 +462,7 @@ export default function LargeFiles() {
           }}
         />
       </Card>
+      )}
 
       {files.length > 0 && (
         <Card style={{ marginTop: 16, background: '#fffbe6' }}>
