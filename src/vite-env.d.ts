@@ -74,6 +74,9 @@ declare global {
     onCleanProgress: (callback: (data: CleanProgress) => void) => void;
     onCleanComplete: (callback: (data: CleanResult) => void) => void;
 
+    // IPC 监听器清理
+    removeAllListeners: (channel: string) => void;
+
     startLargeFileScan: (drives?: string[]) => Promise<ScanItem[]>;
     cancelLargeFileScan: () => Promise<void>;
     onLargeFileProgress: (callback: (data: ScanProgress) => void) => void;

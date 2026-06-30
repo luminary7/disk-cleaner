@@ -14,6 +14,7 @@ import {
 import gsap from 'gsap';
 import ParticleBackground from '../components/ParticleBackground';
 import DriveSelectModal from '../components/DriveSelectModal';
+import logoImg from '../assets/logo.png';
 import scanStateImg from '../assets/ui-kit/scan-state.png';
 import safeCleanImg from '../assets/ui-kit/safe-clean.png';
 import cautionProtectImg from '../assets/ui-kit/caution-protect.png';
@@ -148,6 +149,15 @@ export default function SimpleMode({ onSwitchToAdvanced }: Props) {
       setErrorMsg(data);
       setPhase('error');
     });
+
+    // 清理：组件卸载时移除所有 IPC 监听器，防止累积导致重复 key
+    return () => {
+      window.electronAPI!.removeAllListeners('scan:progress');
+      window.electronAPI!.removeAllListeners('scan:complete');
+      window.electronAPI!.removeAllListeners('scan:error');
+      window.electronAPI!.removeAllListeners('clean:progress');
+      window.electronAPI!.removeAllListeners('clean:complete');
+    };
   }, []);
 
   // ============================
@@ -458,7 +468,7 @@ export default function SimpleMode({ onSwitchToAdvanced }: Props) {
       <ParticleBackground phase={phase} />
 
       {/* 内容层（在粒子之上） */}
-      <div style={{ position: 'relative', zIndex: 1, flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ position: 'relative', zIndex: 1, flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
       {/* 顶栏 */}
       <div style={{ position: 'absolute', right: 20, zIndex: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
         {!hasAPI && (
@@ -486,8 +496,8 @@ export default function SimpleMode({ onSwitchToAdvanced }: Props) {
           }}
         >
           <div ref={idleContentRef} style={{ textAlign: 'center' }}>
-            <div style={{ marginBottom: 8 }}>
-              <ScanOutlined style={{ fontSize: 72, color: '#1677ff' }} />
+            <div style={{ marginBottom: 12 }}>
+              <img src={logoImg} alt="C盘清理工具" style={{ width: 80, height: 80 }} />
             </div>
             <Title level={2} style={{ margin: '8px 0 4px' }}>C盘智能清理</Title>
             <Text type="secondary" style={{ fontSize: 15, display: 'block', marginBottom: 24 }}>
@@ -508,7 +518,7 @@ export default function SimpleMode({ onSwitchToAdvanced }: Props) {
 
       {/* SCANNING 阶段 */}
       {phase === 'scanning' && (
-        <div style={{ flex: 1, display: 'flex', gap: 20, overflow: 'hidden', paddingTop: 40 }}>
+        <div style={{ flex: 1, display: 'flex', gap: 20, overflow: 'hidden', paddingTop: 40, minHeight: 0 }}>
           {/* 左面板：进度 */}
           <div
             ref={leftPanelRef}
@@ -518,7 +528,6 @@ export default function SimpleMode({ onSwitchToAdvanced }: Props) {
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
-              justifyContent: 'center',
               background: 'rgba(255,255,255,0.85)',
               borderRadius: 12,
               padding: '32px 24px',
