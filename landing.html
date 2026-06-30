@@ -1,0 +1,894 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>C盘智能清理工具</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Noto+Sans+SC:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js">
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js">
+</script>
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: 'Noto Sans SC', -apple-system, sans-serif;
+  background: #080C18;
+  color: #fff;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 3px; }
+
+/* ── Canvas BG ── */
+#bg-canvas {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw; height: 100vh;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* ── Nav ── */
+nav {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 100;
+  padding: 0 48px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: background 0.4s, box-shadow 0.4s;
+}
+nav.scrolled {
+  background: rgba(8,12,24,0.82);
+  backdrop-filter: blur(20px);
+  box-shadow: 0 1px 0 rgba(255,255,255,0.04);
+}
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-weight: 700;
+  font-size: 18px;
+  letter-spacing: -0.3px;
+}
+.logo-img {
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  object-fit: cover;
+}
+.nav-links {
+  display: flex;
+  gap: 32px;
+  list-style: none;
+  align-items: center;
+}
+.nav-links a {
+  color: rgba(255,255,255,0.5);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  transition: color 0.3s;
+  position: relative;
+}
+.nav-links a:hover { color: #fff; }
+.nav-links a::after {
+  content: '';
+  position: absolute;
+  bottom: -4px; left: 0;
+  width: 0; height: 1.5px;
+  background: #00E5A0;
+  transition: width 0.3s;
+}
+.nav-links a:hover::after { width: 100%; }
+
+/* ── Hero ── */
+.hero {
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 80px 24px 60px;
+}
+.hero-logo {
+  margin-bottom: 32px;
+}
+.hero-logo img {
+  width: 80px; height: 80px;
+  border-radius: 20px;
+  box-shadow: 0 0 60px rgba(0,229,160,0.15);
+}
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 16px;
+  border-radius: 20px;
+  background: rgba(0,229,160,0.1);
+  border: 1px solid rgba(0,229,160,0.2);
+  font-size: 13px;
+  font-weight: 500;
+  color: #00E5A0;
+  margin-bottom: 28px;
+  letter-spacing: 0.3px;
+}
+.hero-badge-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: #00E5A0;
+  animation: pulse-dot 2s infinite;
+}
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.8); }
+}
+.hero h1 {
+  font-size: clamp(48px, 9vw, 96px);
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -2px;
+  margin-bottom: 20px;
+  background: linear-gradient(135deg, #fff 40%, rgba(255,255,255,0.5));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.hero h1 .highlight {
+  background: linear-gradient(135deg, #00E5A0, #007BFF);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.hero p {
+  font-size: clamp(16px, 2vw, 22px);
+  color: rgba(255,255,255,0.45);
+  font-weight: 400;
+  max-width: 560px;
+  line-height: 1.7;
+  margin-bottom: 44px;
+}
+.hero-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+}
+.hero-tag {
+  padding: 8px 18px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.06);
+  font-size: 13px;
+  color: rgba(255,255,255,0.5);
+  font-weight: 500;
+  transition: background 0.3s, border-color 0.3s, color 0.3s;
+}
+.hero-tag:hover {
+  background: rgba(0,229,160,0.08);
+  border-color: rgba(0,229,160,0.2);
+  color: #00E5A0;
+}
+.scroll-indicator {
+  position: absolute;
+  bottom: 32px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: rgba(255,255,255,0.2);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 2px;
+}
+.scroll-line {
+  width: 1px; height: 40px;
+  background: linear-gradient(to bottom, rgba(255,255,255,0.3), transparent);
+}
+
+/* ── Section common ── */
+section { position: relative; z-index: 1; padding: 120px 24px; }
+.section-header {
+  text-align: center;
+  margin-bottom: 64px;
+}
+.section-label {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: #00E5A0;
+  margin-bottom: 16px;
+}
+.section-title {
+  font-size: clamp(32px, 5vw, 52px);
+  font-weight: 700;
+  letter-spacing: -1px;
+  line-height: 1.2;
+  margin-bottom: 16px;
+}
+.section-desc {
+  font-size: 16px;
+  color: rgba(255,255,255,0.4);
+  max-width: 520px;
+  margin: 0 auto;
+  line-height: 1.7;
+}
+
+/* ── Split content (text + image) ── */
+.split-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 60px;
+  max-width: 1080px;
+  margin: 0 auto;
+  align-items: center;
+  padding: 60px 0;
+}
+.split-row.reverse { direction: rtl; }
+.split-row.reverse > * { direction: ltr; }
+.split-text .split-label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  color: #00E5A0;
+  margin-bottom: 12px;
+}
+.split-text h3 {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  margin-bottom: 16px;
+  line-height: 1.3;
+}
+.split-text p {
+  font-size: 15px;
+  color: rgba(255,255,255,0.45);
+  line-height: 1.8;
+  margin-bottom: 16px;
+}
+.split-text ul {
+  list-style: none;
+  padding: 0;
+}
+.split-text ul li {
+  padding: 6px 0;
+  font-size: 14px;
+  color: rgba(255,255,255,0.5);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.split-text ul li::before {
+  content: '';
+  width: 4px; height: 4px;
+  border-radius: 50%;
+  background: #00E5A0;
+  flex-shrink: 0;
+  opacity: 0.5;
+}
+.split-image {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.split-image img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 16px;
+  box-shadow: 0 20px 80px rgba(0,0,0,0.3);
+  border: 1px solid rgba(255,255,255,0.06);
+}
+
+/* ── Features grid ── */
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  max-width: 1080px;
+  margin: 0 auto;
+}
+.feature-card {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: 16px;
+  padding: 32px;
+  transition: transform 0.3s, background 0.3s, border-color 0.3s;
+  cursor: default;
+}
+.feature-card:hover {
+  background: rgba(255,255,255,0.04);
+  border-color: rgba(0,229,160,0.15);
+  transform: translateY(-4px);
+}
+.feature-icon {
+  width: 44px; height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 16px;
+  margin-bottom: 20px;
+  background: rgba(0,229,160,0.1);
+  color: #00E5A0;
+}
+.feature-icon.purple { background: rgba(124,77,255,0.1); color: #7C4DFF; }
+.feature-icon.blue { background: rgba(0,123,255,0.1); color: #007BFF; }
+.feature-icon.orange { background: rgba(255,171,0,0.1); color: #FFAB00; }
+.feature-icon.pink { background: rgba(255,64,129,0.1); color: #FF4081; }
+.feature-icon.teal { background: rgba(0,200,200,0.1); color: #00C8C8; }
+.feature-card h3 {
+  font-size: 17px;
+  font-weight: 600;
+  margin-bottom: 10px;
+  letter-spacing: -0.2px;
+}
+.feature-card p {
+  font-size: 14px;
+  color: rgba(255,255,255,0.4);
+  line-height: 1.65;
+}
+
+/* ── Tech Stack ── */
+.tech-section {
+  background: linear-gradient(180deg, transparent 0%, rgba(0,229,160,0.02) 50%, transparent 100%);
+}
+.tech-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 40px;
+  max-width: 900px;
+  margin: 0 auto;
+}
+.tech-group {
+  text-align: center;
+}
+.tech-group-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.25);
+  letter-spacing: 2px;
+  margin-bottom: 16px;
+  text-transform: uppercase;
+}
+.tech-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+}
+.tech-item {
+  padding: 10px 20px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(255,255,255,0.6);
+  transition: all 0.3s;
+}
+.tech-item:hover {
+  background: rgba(0,229,160,0.06);
+  border-color: rgba(0,229,160,0.15);
+  color: #00E5A0;
+  transform: translateY(-2px);
+}
+
+/* ── Architecture ── */
+.arch-container {
+  max-width: 1080px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 20px;
+  align-items: start;
+}
+.arch-col {
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,0.05);
+  background: rgba(255,255,255,0.02);
+  padding: 28px;
+  transition: border-color 0.3s;
+}
+.arch-col:hover { border-color: rgba(0,229,160,0.12); }
+.arch-col-title {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #00E5A0;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.arch-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  font-size: 14px;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+.arch-item:last-child { border-bottom: none; }
+.arch-item-name { color: rgba(255,255,255,0.7); font-weight: 500; }
+.arch-item-desc { color: rgba(255,255,255,0.3); font-size: 12px; }
+
+/* ── Divider ── */
+.section-divider {
+  max-width: 1080px;
+  margin: 0 auto;
+  height: 1px;
+  background: linear-gradient(to right, transparent, rgba(255,255,255,0.04), transparent);
+}
+
+/* ── Footer ── */
+footer {
+  position: relative;
+  z-index: 1;
+  padding: 48px 24px;
+  text-align: center;
+  border-top: 1px solid rgba(255,255,255,0.03);
+  color: rgba(255,255,255,0.2);
+  font-size: 13px;
+}
+
+/* ── Responsive ── */
+@media (max-width: 900px) {
+  .features-grid { grid-template-columns: repeat(2, 1fr); }
+  .arch-container { grid-template-columns: 1fr; }
+  .split-row { grid-template-columns: 1fr; gap: 40px; text-align: center; }
+  .split-row.reverse { direction: ltr; }
+  .split-text ul li { justify-content: center; }
+  nav { padding: 0 20px; }
+  .nav-links { gap: 20px; }
+}
+@media (max-width: 600px) {
+  .features-grid { grid-template-columns: 1fr; }
+  nav { padding: 0 16px; }
+  .nav-links a { font-size: 13px; }
+  section { padding: 80px 16px; }
+  .split-image img { max-width: 90%; }
+}
+</style>
+</head>
+<body>
+
+<canvas id="bg-canvas"></canvas>
+
+<nav id="nav">
+  <div class="logo">
+    <img src="src/assets/logo.png" alt="C盘清理工具" class="logo-img">
+    C盘清理工具
+  </div>
+  <ul class="nav-links">
+    <li><a href="#modes">工作模式</a></li>
+    <li><a href="#features">核心功能</a></li>
+    <li><a href="#tech">技术栈</a></li>
+    <li><a href="#arch">架构</a></li>
+  </ul>
+</nav>
+
+<!-- ══ Hero ══ -->
+<section class="hero">
+  <div class="hero-logo">
+    <img src="src/assets/logo.png" alt="C盘清理工具">
+  </div>
+  <div class="hero-badge"><span class="hero-badge-dot"></span> v1.0 — Windows 桌面应用</div>
+  <h1>
+    让你的 C 盘<br>
+    <span class="highlight">重获新生</span>
+  </h1>
+  <p>
+    智能扫描 Windows 缓存与临时文件，极简模式一键释放空间，<br>
+    高级模式深度分析 + AI 辅助决策，安全高效管理磁盘
+  </p>
+  <div class="hero-tags">
+    <span class="hero-tag">Electron + React</span>
+    <span class="hero-tag">TypeScript</span>
+    <span class="hero-tag">安全回收站机制</span>
+    <span class="hero-tag">AI 智能分析</span>
+  </div>
+  <div class="scroll-indicator">
+    <span>向下滚动了解更多</span>
+    <div class="scroll-line"></div>
+  </div>
+</section>
+
+<!-- ══ Two Modes ══ -->
+<section id="modes">
+  <div class="section-header">
+    <div class="section-label">两种工作模式</div>
+    <h2 class="section-title">兼顾便捷与深度</h2>
+    <p class="section-desc">面向普通用户的一键清理，和面向进阶用户的深度分析，一套工具两种体验</p>
+  </div>
+
+  <div class="split-row">
+    <div class="split-text">
+      <div class="split-label">SIMPLE MODE</div>
+      <h3>极简模式</h3>
+      <p>为普通用户设计的六阶段引导流程，无需任何专业知识即可完成 C 盘清理。内置安全规则引擎自动识别可安全删除的缓存文件，全程反馈扫描与清理进度。</p>
+      <ul>
+        <li>一键扫描，智能识别各类缓存与临时文件</li>
+        <li>内置安全规则引擎，自动排除系统关键路径</li>
+        <li>实时进度反馈，GSAP 动效衔接各阶段状态</li>
+        <li>六阶段状态机驱动：idle / scanning / scan-done / cleaning / clean-done / error</li>
+      </ul>
+    </div>
+    <div class="split-image">
+      <img src="src/assets/ui-kit/scan-state.png" alt="极简模式扫描界面" loading="lazy">
+    </div>
+  </div>
+
+  <div class="split-row reverse">
+    <div class="split-text">
+      <div class="split-label">ADVANCED MODE</div>
+      <h3>高级模式</h3>
+      <p>面向进阶用户的完整工具箱，侧边导航 + 多标签页布局，涵盖空间概览、逐项清理、大文件分析、AI 助手等功能模块，细致掌控每一 MB 空间。</p>
+      <ul>
+        <li>ECharts 饼图可视化展示空间分布与 Top 10 排行</li>
+        <li>逐项清理：按分类筛选，安全等级标记（safe / caution / keep）</li>
+        <li>大文件递归扫描，支持类型筛选与单文件详情查看</li>
+        <li>AI 助手对话式分析，提供文件清理建议</li>
+      </ul>
+    </div>
+    <div class="split-image">
+      <img src="src/assets/ui-kit/disk-drive.png" alt="高级模式空间概览" loading="lazy">
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- ══ Core Features ══ -->
+<section id="features">
+  <div class="section-header">
+    <div class="section-label">核心功能</div>
+    <h2 class="section-title">不只是清理</h2>
+    <p class="section-desc">从快速扫描到深度分析，从大文件管理到 AI 建议，一站式 C 盘管理方案</p>
+  </div>
+  <div class="features-grid">
+    <div class="feature-card">
+      <div class="feature-icon">S</div>
+      <h3>一键扫描清理</h3>
+      <p>智能识别 temp、browser、app、system 四类缓存，安全规则引擎自动判定可删性，数秒完成扫描。</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon purple">D</div>
+      <h3>可视化空间概览</h3>
+      <p>ECharts 饼图展示各分类占比，Top 10 文件排行一目了然。支持 drill-down 逐层查看，空间占用心中有数。</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon blue">F</div>
+      <h3>大文件管理</h3>
+      <p>递归扫描用户指定目录，按大小排序。支持按文档/视频/压缩包等类型筛选，配合 AI 分析决定是否清理。</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon orange">A</div>
+      <h3>AI 智能分析</h3>
+      <p>接入 OpenAI 兼容 API（DeepSeek / MiniMax / SiliconFlow 预设支持），智能分析文件安全性，给出清理建议。</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon pink">P</div>
+      <h3>安全双重保障</h3>
+      <p>所有删除走系统回收站（shell.trashItem），支持清理前创建 Windows 系统还原点。双校验机制防止误删系统文件。</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon teal">L</div>
+      <h3>操作日志审计</h3>
+      <p>每次清理操作记录详细日志，包含文件路径、大小、操作时间。支持一键打开日志文件夹回溯审计。</p>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- ══ AI Analysis ══ -->
+<section>
+  <div class="section-header">
+    <div class="section-label">INTELLIGENT ANALYSIS</div>
+    <h2 class="section-title">AI 驱动的文件分析</h2>
+    <p class="section-desc">接入大语言模型，让 AI 帮你判断哪些文件可以安全清理</p>
+  </div>
+  <div class="split-row">
+    <div class="split-text">
+      <div class="split-label">AI ASSISTANT</div>
+      <h3>对话式清理顾问</h3>
+      <p>AI 助手模块支持上下文对话，你可以发送扫描摘要让 AI 给出清理策略，也可以针对单个文件做深度分析。AI 会返回文件类型、用途、风险等级和建议操作。</p>
+      <ul>
+        <li>支持 DeepSeek / MiniMax / SiliconFlow 三大预设提供者</li>
+        <li>自定义 endpoint 和 model，兼容任意 OpenAI API</li>
+        <li>多轮对话保持上下文，深度分析文件用途</li>
+        <li>预设管理：保存和切换不同的 AI 配置方案</li>
+      </ul>
+    </div>
+    <div class="split-image">
+      <img src="src/assets/ui-kit/ai-analysis.png" alt="AI 智能分析" loading="lazy">
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- ══ Safety ══ -->
+<section>
+  <div class="section-header">
+    <div class="section-label">SECURITY FIRST</div>
+    <h2 class="section-title">全方位的安全设计</h2>
+    <p class="section-desc">清理工具的首要任务是保障数据安全，每一处设计都为安全考虑</p>
+  </div>
+
+  <div class="features-grid" style="margin-bottom:60px">
+    <div class="feature-card">
+      <div class="feature-icon">R</div>
+      <h3>回收站优先</h3>
+      <p>所有文件删除使用 Electron shell.trashItem 移至回收站，误删可一键恢复。不做永久删除操作。</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon purple">C</div>
+      <h3>系统还原点</h3>
+      <p>清理前可选创建 Windows 系统还原点（PowerShell Checkpoint-Computer），系统级回退保障。</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon blue">V</div>
+      <h3>双校验排除</h3>
+      <p>扫描时和删除时两次调用 isExcludedPath 校验，阻止 C:\\Windows、C:\\Program Files 等关键路径被操作。</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon orange">I</div>
+      <h3>进程隔离</h3>
+      <p>Electron contextIsolation + nodeIntegration: false，渲染进程无法直连 Node.js，保障主进程安全。</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon pink">T</div>
+      <h3>安全等级标记</h3>
+      <p>规则引擎为每条文件标记 safety 等级：safe（绿色可删）/ caution（黄色慎删）/ keep（灰色保留）。</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon teal">O</div>
+      <h3>操作可追溯</h3>
+      <p>日志系统记录每一次删除操作的详细信息，支持审计回溯，清理历史清晰可查。</p>
+    </div>
+  </div>
+
+  <div class="split-row" style="padding-top:0">
+    <div class="split-image">
+      <img src="src/assets/ui-kit/safe-clean.png" alt="安全清理机制" loading="lazy">
+    </div>
+    <div class="split-text">
+      <div class="split-label">SAFETY CHAIN</div>
+      <h3>安全链路全景</h3>
+      <p>从扫描到删除，每个环节都有相应的安全机制兜底，形成完整的安全链路。</p>
+      <ul>
+        <li><strong>扫描层：</strong>排除列表跳过系统目录，正则匹配 C:\\Windows 等 8 类路径</li>
+        <li><strong>判定层：</strong>rule-engine 根据文件年龄、大小、扩展名综合判定安全等级</li>
+        <li><strong>删除层：</strong>再次调用 isExcludedPath，杜绝绕过扫描直接删除的可能</li>
+        <li><strong>恢复层：</strong>回收站 + 系统还原点双重恢复途径</li>
+        <li><strong>审计层：</strong>日志记录每条操作，便于事后回溯</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- ══ Tech Stack ══ -->
+<section id="tech" class="tech-section">
+  <div class="section-header">
+    <div class="section-label">TECH STACK</div>
+    <h2 class="section-title">现代桌面技术栈</h2>
+    <p class="section-desc">Electron + React 19 + TypeScript，前沿技术打造高效可靠的桌面体验</p>
+  </div>
+  <div class="tech-grid">
+    <div class="tech-group">
+      <div class="tech-group-title">框架与运行时</div>
+      <div class="tech-items">
+        <span class="tech-item">Electron 42</span>
+        <span class="tech-item">React 19</span>
+        <span class="tech-item">TypeScript 6</span>
+        <span class="tech-item">Vite 8</span>
+      </div>
+    </div>
+    <div class="tech-group">
+      <div class="tech-group-title">UI 与可视化</div>
+      <div class="tech-items">
+        <span class="tech-item">Ant Design 6</span>
+        <span class="tech-item">ECharts 6</span>
+        <span class="tech-item">GSAP 3</span>
+      </div>
+    </div>
+    <div class="tech-group">
+      <div class="tech-group-title">构建与分发</div>
+      <div class="tech-items">
+        <span class="tech-item">electron-builder 26</span>
+        <span class="tech-item">NSIS 安装包</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- ══ Architecture ══ -->
+<section id="arch">
+  <div class="section-header">
+    <div class="section-label">ARCHITECTURE</div>
+    <h2 class="section-title">三层架构，各司其职</h2>
+    <p class="section-desc">主进程 · preload 桥接 · 渲染进程，清晰的职责分离与安全的通信机制</p>
+  </div>
+
+  <div style="max-width:1080px;margin:0 auto 48px;text-align:center">
+    <div style="display:inline-flex;gap:0;border-radius:12px;overflow:hidden;border:1px solid rgba(255,255,255,0.05)">
+      <div style="padding:16px 28px;background:rgba(0,229,160,0.08);color:#00E5A0;font-size:13px;font-weight:500">渲染进程 React</div>
+      <div style="padding:16px 28px;background:rgba(124,77,255,0.08);color:#7C4DFF;font-size:13px;font-weight:500">preload 桥接</div>
+      <div style="padding:16px 28px;background:rgba(0,123,255,0.08);color:#007BFF;font-size:13px;font-weight:500">主进程 Node.js</div>
+    </div>
+  </div>
+
+  <div class="arch-container">
+    <div class="arch-col">
+      <div class="arch-col-title">主进程 (Node.js)</div>
+      <div class="arch-item"><span class="arch-item-name">scanner.js</span><span class="arch-item-desc">缓存目录/大文件扫描引擎</span></div>
+      <div class="arch-item"><span class="arch-item-name">rule-engine.js</span><span class="arch-item-desc">路径排除 + 安全等级判定</span></div>
+      <div class="arch-item"><span class="arch-item-name">file-operator.js</span><span class="arch-item-desc">回收站删除 + 系统还原点</span></div>
+      <div class="arch-item"><span class="arch-item-name">ai-provider.js</span><span class="arch-item-desc">OpenAI 兼容 API 客户端</span></div>
+      <div class="arch-item"><span class="arch-item-name">store.js</span><span class="arch-item-desc">JSON 文件键值持久化</span></div>
+      <div class="arch-item"><span class="arch-item-name">logger.js</span><span class="arch-item-desc">操作日志写入与读取</span></div>
+      <div class="arch-item"><span class="arch-item-name">file-detail.js</span><span class="arch-item-desc">单文件元信息获取</span></div>
+    </div>
+    <div class="arch-col">
+      <div class="arch-col-title">preload 桥接</div>
+      <div class="arch-item"><span class="arch-item-name">contextBridge</span><span class="arch-item-desc">安全暴露 API 到渲染进程</span></div>
+      <div class="arch-item"><span class="arch-item-name">ipcRenderer.invoke</span><span class="arch-item-desc">双向请求-响应通信</span></div>
+      <div class="arch-item"><span class="arch-item-name">ipcRenderer.on</span><span class="arch-item-desc">主进程主动推送事件</span></div>
+      <div class="arch-item"><span class="arch-item-name">IPC 命名规范</span><span class="arch-item-desc">模块名:动作（如 scan:start）</span></div>
+      <div class="arch-item"><span class="arch-item-name">类型共享</span><span class="arch-item-desc">vite-env.d.ts 全局类型声明</span></div>
+    </div>
+    <div class="arch-col">
+      <div class="arch-col-title">渲染进程 (React)</div>
+      <div class="arch-item"><span class="arch-item-name">SimpleMode</span><span class="arch-item-desc">六阶段极简流程 UI</span></div>
+      <div class="arch-item"><span class="arch-item-name">AdvancedMode</span><span class="arch-item-desc">侧边导航 + 多标签页</span></div>
+      <div class="arch-item"><span class="arch-item-name">SpaceOverview</span><span class="arch-item-desc">ECharts 饼图 + Top 10</span></div>
+      <div class="arch-item"><span class="arch-item-name">CleanItems</span><span class="arch-item-desc">安全等级标记 + 勾选删除</span></div>
+      <div class="arch-item"><span class="arch-item-name">LargeFiles</span><span class="arch-item-desc">大文件分析 + AI 分析</span></div>
+      <div class="arch-item"><span class="arch-item-name">AIAssistant / AIConfigPage</span><span class="arch-item-desc">AI 对话 + 配置管理</span></div>
+      <div class="arch-item"><span class="arch-item-name">AppContext</span><span class="arch-item-desc">Context + useReducer 全局状态</span></div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  C盘智能清理工具 — Built with Electron + React + TypeScript — 安全释放磁盘空间
+</footer>
+
+<script>
+// ── Canvas 粒子背景 ──
+(function initParticles() {
+  const canvas = document.getElementById('bg-canvas');
+  const ctx = canvas.getContext('2d');
+  let w, h, particles = [];
+  const COUNT = 70;
+
+  function resize() {
+    w = canvas.width = window.innerWidth;
+    h = canvas.height = window.innerHeight;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  for (let i = 0; i < COUNT; i++) {
+    particles.push({
+      x: Math.random() * w,
+      y: Math.random() * h,
+      vx: (Math.random() - 0.5) * 0.3,
+      vy: (Math.random() - 0.5) * 0.3,
+      r: Math.random() * 1.5 + 0.5,
+      a: Math.random() * 0.3 + 0.05,
+    });
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, w, h);
+    for (const p of particles) {
+      p.x += p.vx;
+      p.y += p.vy;
+      if (p.x < 0) p.x = w;
+      if (p.x > w) p.x = 0;
+      if (p.y < 0) p.y = h;
+      if (p.y > h) p.y = 0;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(0, 229, 160, ${p.a})`;
+      ctx.fill();
+    }
+    for (let i = 0; i < particles.length; i++) {
+      for (let j = i + 1; j < particles.length; j++) {
+        const dx = particles[i].x - particles[j].x;
+        const dy = particles[i].y - particles[j].y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < 150) {
+          ctx.beginPath();
+          ctx.moveTo(particles[i].x, particles[i].y);
+          ctx.lineTo(particles[j].x, particles[j].y);
+          ctx.strokeStyle = `rgba(0, 229, 160, ${0.05 * (1 - dist / 150)})`;
+          ctx.lineWidth = 0.5;
+          ctx.stroke();
+        }
+      }
+    }
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+// ── Nav scroll effect ──
+const nav = document.getElementById('nav');
+window.addEventListener('scroll', () => {
+  nav.classList.toggle('scrolled', window.scrollY > 60);
+});
+
+// ── GSAP Animations ──
+gsap.registerPlugin(ScrollTrigger);
+
+// Hero entrance
+const heroTL = gsap.timeline({ defaults: { ease: 'power3.out' } });
+heroTL
+  .from('.hero-logo',    { y: 40, opacity: 0, duration: 0.8 })
+  .from('.hero-badge',   { y: 30, opacity: 0, duration: 0.8 }, '-=0.4')
+  .from('.hero h1',      { y: 60, opacity: 0, duration: 1 }, '-=0.4')
+  .from('.hero p',       { y: 40, opacity: 0, duration: 0.8 }, '-=0.5')
+  .from('.hero-tag',     { y: 20, opacity: 0, duration: 0.5, stagger: 0.08 }, '-=0.4')
+  .from('.scroll-indicator', { opacity: 0, duration: 0.6 }, '-=0.2');
+
+// Sections scroll reveal
+gsap.from('.section-header', {
+  scrollTrigger: { trigger: '.section-header', start: 'top 80%' },
+  y: 40, opacity: 0, duration: 0.8, ease: 'power3.out',
+});
+
+// Split sections
+gsap.from('.split-row .split-text', {
+  scrollTrigger: { trigger: '.split-row', start: 'top 75%' },
+  x: -40, opacity: 0, duration: 0.8, ease: 'power3.out',
+});
+gsap.from('.split-row .split-image', {
+  scrollTrigger: { trigger: '.split-row', start: 'top 75%' },
+  x: 40, opacity: 0, duration: 0.8, ease: 'power3.out',
+});
+
+// Feature cards
+gsap.from('.feature-card', {
+  scrollTrigger: { trigger: '#features', start: 'top 70%' },
+  y: 60, opacity: 0, duration: 0.8, stagger: 0.1, ease: 'power3.out',
+});
+
+// Tech items
+gsap.from('.tech-item', {
+  scrollTrigger: { trigger: '#tech', start: 'top 75%' },
+  y: 30, opacity: 0, duration: 0.5, stagger: 0.06, ease: 'power2.out',
+});
+
+// Architecture columns
+gsap.from('.arch-col', {
+  scrollTrigger: { trigger: '#arch', start: 'top 75%' },
+  y: 50, opacity: 0, duration: 0.8, stagger: 0.15, ease: 'power3.out',
+});
+gsap.from('.arch-item', {
+  scrollTrigger: { trigger: '#arch', start: 'top 70%' },
+  x: -20, opacity: 0, duration: 0.4, stagger: 0.05, ease: 'power2.out',
+});
+</script>
+</body>
+</html>
