@@ -590,18 +590,33 @@ export default function LargeFiles() {
       ) : (
         <Card>
           {files.length > 0 && (
-            <div style={{
-              marginBottom: 16,
-              padding: '10px 16px',
-              background: '#fffbe6',
-              border: '1px solid #ffe58f',
-              borderRadius: 8,
-              fontSize: 13,
-              color: '#ad8b00',
-              lineHeight: 1.6,
-            }}>
-              ⚠ 大文件删除后请确认不影响正在使用的程序。如不确定文件用途，建议先搜索确认。
-            </div>
+            <>
+              <div style={{
+                marginBottom: 8,
+                padding: '10px 16px',
+                background: '#fffbe6',
+                border: '1px solid #ffe58f',
+                borderRadius: 8,
+                fontSize: 13,
+                color: '#ad8b00',
+                lineHeight: 1.6,
+              }}>
+                ⚠ 大文件删除后请确认不影响正在使用的程序。如不确定文件用途，建议先搜索确认。
+              </div>
+              <div style={{
+                marginBottom: 16,
+                padding: '10px 16px',
+                background: '#fff2f0',
+                border: '1px solid #ffccc7',
+                borderRadius: 8,
+                fontSize: 13,
+                color: '#cf1322',
+                lineHeight: 1.6,
+                fontWeight: 500,
+              }}>
+                🔴 AI 分析建议仅供参考，请务必确认无误后再删除。如误删文件，可前往回收站恢复。
+              </div>
+            </>
           )}
           <Table
           dataSource={filteredFiles}

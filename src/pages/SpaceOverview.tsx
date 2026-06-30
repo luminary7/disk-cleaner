@@ -537,13 +537,13 @@ export default function SpaceOverview() {
             ))}
           </Row>
 
-          <div style={{ textAlign: 'center', marginTop: 24, color: '#8c8c8c', fontSize: 13 }}>
-            <Space>
-              <SafetyCertificateOutlined style={{ color: SAFETY_THEME.safe.color }} />
+          <div style={{ textAlign: 'center', marginTop: 24, color: '#595959', fontSize: 14, fontWeight: 500 }}>
+            <Space size={20}>
+              <SafetyCertificateOutlined style={{ color: SAFETY_THEME.safe.color, fontSize: 16 }} />
               删除操作默认移至回收站
-              <WarningOutlined style={{ color: SAFETY_THEME.caution.color, marginLeft: 16 }} />
+              <WarningOutlined style={{ color: SAFETY_THEME.caution.color, marginLeft: 16, fontSize: 16 }} />
               不确定的项目会标记为注意
-              <LockOutlined style={{ color: SAFETY_THEME.keep.color, marginLeft: 16 }} />
+              <LockOutlined style={{ color: SAFETY_THEME.keep.color, marginLeft: 16, fontSize: 16 }} />
               受保护文件建议保留
             </Space>
           </div>
