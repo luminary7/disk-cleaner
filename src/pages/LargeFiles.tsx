@@ -69,7 +69,7 @@ export default function LargeFiles() {
   const [analysisMap, setAnalysisMap] = useState<Map<string, FileAnalysis>>(new Map());
   const [drawerVisible, setDrawerVisible] = useState(false);
 
-  // 实时扫描：监听进度事件积累文件
+  // 仅监听增量批次，用于实时滚动展示
   useEffect(() => {
     if (!window.electronAPI) return;
 
@@ -78,13 +78,6 @@ export default function LargeFiles() {
         setFiles(prev => [...prev, ...data.batchItems!]);
       }
     });
-
-    window.electronAPI.onLargeFileComplete((data) => {
-      setFiles(data.items);
-      setAnalysisMap(new Map());
-      setLoading(false);
-      message.success(`找到 ${data.items.length} 个大文件`);
-    });
   }, []);
 
   const handleScan = async () => {
@@ -92,9 +85,15 @@ export default function LargeFiles() {
     setLoading(true);
     setFiles([]);
     setAnalysisMap(new Map());
+    setSelectedIds(new Set());
     try {
-      await window.electronAPI.startLargeFileScan();
+      const result = await window.electronAPI.startLargeFileScan();
+      // 以返回值为准，覆盖增量积累
+      setFiles(result);
+      message.success(`找到 ${result.length} 个大文件`);
     } catch {
+      message.error('大文件扫描失败');
+    } finally {
       setLoading(false);
     }
   };

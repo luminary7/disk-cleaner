@@ -37,7 +37,7 @@ export default function CleanItems() {
   const [loading, setLoading] = useState(false);
   const [cleaning, setCleaning] = useState(false);
 
-  // 实时扫描：监听进度事件积累文件
+  // 仅监听增量批次，用于实时滚动展示
   useEffect(() => {
     if (!window.electronAPI) return;
 
@@ -45,17 +45,6 @@ export default function CleanItems() {
       if (data.batchItems && data.batchItems.length > 0) {
         setItems(prev => [...prev, ...data.batchItems!]);
       }
-    });
-
-    window.electronAPI.onScanComplete((data) => {
-      setItems(data.items);
-      const safeIds = data.items.filter((i) => i.safety === 'safe').map((i) => i.id);
-      setSelectedIds(new Set(safeIds));
-      setLoading(false);
-    });
-
-    window.electronAPI.onScanError(() => {
-      setLoading(false);
     });
   }, []);
 
@@ -65,8 +54,13 @@ export default function CleanItems() {
     setItems([]);
     setSelectedIds(new Set());
     try {
-      await window.electronAPI.startScan();
+      const result = await window.electronAPI.startScan();
+      // 以返回值为准，覆盖增量积累
+      setItems(result.items);
+      setSelectedIds(new Set(result.items.filter(i => i.safety === 'safe').map(i => i.id)));
     } catch {
+      message.error('扫描失败');
+    } finally {
       setLoading(false);
     }
   };
