@@ -60,4 +60,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // 打开文件位置
   openFileLocation: (filePath) => ipcRenderer.invoke('shell:open-file-location', filePath),
+
+  // 开发辅助：重载窗口（preload 变更后生效）
+  reloadWindow: () => ipcRenderer.invoke('app:reload'),
 });

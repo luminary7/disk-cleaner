@@ -94,6 +94,9 @@ declare global {
     createRestorePoint: () => Promise<{ success: boolean; message: string }>;
 
     openFileLocation: (filePath: string) => Promise<void>;
+
+    // 开发辅助
+    reloadWindow: () => Promise<void>;
   }
 
   interface Window {

@@ -205,6 +205,11 @@ function registerIPC() {
     return fileOperator.createSystemRestorePoint();
   });
 
+  // ========= 开发辅助 =========
+  ipcMain.handle('app:reload', () => {
+    mainWindow?.webContents.reload(); // 重载渲染进程 + preload 脚本
+  });
+
   // ========= Shell =========
   ipcMain.handle('shell:open-file-location', async (_event, filePath) => {
     shell.showItemInFolder(filePath);
