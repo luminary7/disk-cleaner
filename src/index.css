@@ -30,3 +30,5 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #bfbfbf;
 }
+
+/* 文件列表项悬停效果由内联事件处理 */

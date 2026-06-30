@@ -95,17 +95,27 @@ async function startScan(onProgress) {
   for (const target of targets) {
     if (cancelRequested) break;
 
+    // 发送扫描开始通知
     onProgress({
       current: completed,
       total,
-      currentItem: `正在扫描: ${target.name}`,
-      phase: `扫描 ${target.name}...`,
+      currentItem: `正在扫描: ${target.name}...`,
+      phase: `正在扫描垃圾文件...`,
     });
 
     const items = await scanDirectoryRecursive(target.resolvedPath, target.category, target.name, 0);
     allItems.push(...items);
     totalSize += items.reduce((sum, i) => sum + i.size, 0);
     completed++;
+
+    // 发送该目录下发现的所有文件，用于前端实时展示
+    onProgress({
+      current: completed,
+      total,
+      currentItem: `已扫描: ${target.name} (${items.length} 项)`,
+      phase: `正在扫描垃圾文件...`,
+      batchItems: items,
+    });
   }
 
   return { items: allItems, totalSize };
