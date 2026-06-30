@@ -17,7 +17,7 @@ const SYSTEM_EXCLUSIONS = [
 
 // 系统关键文件类型 — 即使不在系统目录也警告
 const SYSTEM_FILE_EXTS = [
-  '.sys', '.dll', '.exe', '.ocx', '.drv', '.cpl',
+  '.sys', '.ocx', '.drv', '.cpl',
 ];
 
 /**

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { Button, Typography, Progress, Space, Alert, Modal } from 'antd';
+import { Button, Typography, Progress, Space, Alert, Modal, message } from 'antd';
 import {
   ScanOutlined,
   DeleteOutlined,
@@ -336,8 +336,13 @@ export default function SimpleMode({ onSwitchToAdvanced }: Props) {
       const result = await window.electronAPI.cleanSingle(item);
       if (result.success) {
         setAllScanItems(prev => prev.filter(i => i.id !== item.id));
+        message.success(`已删除: ${item.name}`);
+      } else {
+        message.error(result.error || '删除失败');
       }
-    } catch { /* 静默 */ }
+    } catch (err: any) {
+      message.error('删除失败: ' + (err?.message || '未知错误'));
+    }
   }, []);
 
   // ============================
