@@ -24,6 +24,7 @@ function createWindow() {
     minWidth: 800,
     minHeight: 600,
     title: 'C盘清理工具',
+    icon: path.join(__dirname, '../public/icon.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,

@@ -1,0 +1,94 @@
+<style>
+  .compare-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px;
+    margin-top: 22px;
+  }
+
+  .logo-card {
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    background: #fff;
+    overflow: hidden;
+    cursor: pointer;
+    transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .logo-card:hover {
+    transform: translateY(-2px);
+    border-color: #1677ff;
+    box-shadow: 0 18px 42px rgba(22, 119, 255, 0.13);
+  }
+
+  .logo-stage {
+    aspect-ratio: 1 / 1;
+    max-height: 520px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 34px;
+    background:
+      radial-gradient(circle at 50% 50%, rgba(22,119,255,0.08), transparent 52%),
+      linear-gradient(135deg, #fbfdff 0%, #f4fbf8 100%);
+  }
+
+  .logo-stage img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    filter: drop-shadow(0 18px 28px rgba(15, 23, 42, 0.14));
+  }
+
+  .logo-body {
+    padding: 18px;
+  }
+
+  .logo-body h3 {
+    margin: 0 0 8px;
+  }
+
+  .logo-body p {
+    margin: 0;
+    color: #667085;
+    line-height: 1.65;
+  }
+
+  .note {
+    margin-top: 18px;
+    border: 1px solid #abefc6;
+    background: #ecfdf3;
+    color: #067647;
+    border-radius: 12px;
+    padding: 14px 16px;
+  }
+</style>
+
+<h2>D / E 升级参考版</h2>
+<p class="subtitle">这两张是新生成的高级感参考版，已保存到 <strong>src/assets/logo-candidates/</strong>，目前还没有替换产品 Logo。</p>
+
+<div class="compare-grid">
+  <div class="logo-card" data-choice="d-premium" onclick="toggleSelect(this)">
+    <div class="logo-stage">
+      <img src="/files/logo-d-premium-geo.png" alt="D premium geometric logo">
+    </div>
+    <div class="logo-body">
+      <h3>D 升级版：几何空间</h3>
+      <p>更品牌化、更抽象，像“空间释放 / 磁盘优化”的高级产品标识。语义没有盾牌那么直白，但视觉更轻、更现代。</p>
+    </div>
+  </div>
+
+  <div class="logo-card" data-choice="e-premium" onclick="toggleSelect(this)">
+    <div class="logo-stage">
+      <img src="/files/logo-e-premium-shield.png" alt="E premium shield logo">
+    </div>
+    <div class="logo-body">
+      <h3>E 升级版：安全盾牌</h3>
+      <p>保留“安全清理、保护系统”的产品语义，同时比原 E 更精致立体。更适合作为当前产品的正式 Logo。</p>
+    </div>
+  </div>
+</div>
+
+<div class="note">
+  我的判断：如果想要更高级品牌感，D 升级版更漂亮；如果要高级且产品定位更准，E 升级版更适合落地。
+</div>
