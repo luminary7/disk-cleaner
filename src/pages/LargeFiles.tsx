@@ -34,50 +34,35 @@ function formatSize(bytes: number): string {
   return bytes + ' B';
 }
 
-const FILE_TYPE_OPTIONS = [
-  { value: 'all', label: '全部类型' },
-  { value: 'video', label: '视频' },
-  { value: 'archive', label: '压缩包' },
-  { value: 'log', label: '日志' },
-  { value: 'image', label: '镜像(ISO)' },
-  { value: 'other', label: '其他' },
+// 文件扩展名 → 所属类别（缓存/数据/文档/安装包/视频/镜像/程序/代码/图片）
+const FILE_CATEGORIES = [
+  { exts: ['tmp', 'log', 'cache', 'bak', 'old', 'dmp', 'swp'], label: '缓存文件', color: '#faad14' },
+  { exts: ['db', 'sqlite', 'sqlite3', 'mdb', 'dbx', 'mysql', 'sql', 'dbf'], label: '数据文件', color: '#ff4d4f' },
+  { exts: ['json', 'xml', 'yaml', 'yml', 'toml', 'ini', 'cfg'], label: '配置数据', color: '#13c2c2' },
+  { exts: ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'csv', 'txt'], label: '文档文件', color: '#2f54eb' },
+  { exts: ['zip', 'rar', '7z', 'tar', 'gz', 'bz2', 'xz', 'iso', 'img'], label: '安装包/镜像', color: '#1677ff' },
+  { exts: ['mp4', 'avi', 'mkv', 'mov', 'wmv', 'flv', 'webm'], label: '视频文件', color: '#722ed1' },
+  { exts: ['exe', 'dll', 'msi', 'sys', 'ocx', 'drv', 'cpl', 'com', 'scr'], label: '可执行程序', color: '#ff4d4f' },
+  { exts: ['js', 'ts', 'py', 'java', 'cpp', 'cs', 'go', 'rs', 'c', 'h', 'swift', 'kt'], label: '代码文件', color: '#722ed1' },
+  { exts: ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'ico', 'bmp', 'tiff'], label: '图片文件', color: '#eb2f96' },
 ];
+
+function getFileCategory(ext: string): { label: string; color: string } {
+  for (const cat of FILE_CATEGORIES) {
+    if (cat.exts.includes(ext)) return cat;
+  }
+  return { label: '其他', color: '#8c8c8c' };
+}
 
 function guessFileType(name: string): string {
   const ext = name.split('.').pop()?.toLowerCase() || '';
-  if (['mp4', 'avi', 'mkv', 'mov', 'wmv', 'flv'].includes(ext)) return 'video';
-  if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext)) return 'archive';
-  if (['log', 'tmp'].includes(ext)) return 'log';
-  if (['iso', 'img'].includes(ext)) return 'image';
-  return 'other';
+  return getFileCategory(ext).label;
 }
 
-// 文件扩展名 → 标签颜色
-function getExtColor(ext: string): string {
-  const archives = ['zip', 'rar', '7z', 'tar', 'gz', 'bz2', 'xz'];
-  const videos = ['mp4', 'avi', 'mkv', 'mov', 'wmv', 'flv', 'webm'];
-  const logs = ['log', 'tmp'];
-  const images = ['iso', 'img'];
-  const databases = ['db', 'sqlite', 'sqlite3', 'mdb', 'dbx', 'mysql', 'sql', 'dbf'];
-  const executables = ['exe', 'dll', 'msi', 'sys', 'ocx', 'drv', 'cpl'];
-  const documents = ['pdf'];
-  const office = ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'];
-  const code = ['js', 'ts', 'py', 'java', 'cpp', 'cs', 'go', 'rs'];
-  const data = ['json', 'xml', 'yaml', 'yml', 'toml', 'ini', 'cfg'];
-  const pictures = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'ico', 'bmp'];
-  if (archives.includes(ext)) return '#1677ff';
-  if (videos.includes(ext)) return '#722ed1';
-  if (logs.includes(ext)) return '#faad14';
-  if (images.includes(ext)) return '#52c41a';
-  if (databases.includes(ext)) return '#ff4d4f';
-  if (executables.includes(ext)) return '#ff4d4f';
-  if (documents.includes(ext)) return '#fa541c';
-  if (office.includes(ext)) return '#2f54eb';
-  if (code.includes(ext)) return '#722ed1';
-  if (data.includes(ext)) return '#13c2c2';
-  if (pictures.includes(ext)) return '#eb2f96';
-  return '#8c8c8c';
-}
+const FILE_TYPE_OPTIONS = [
+  { value: 'all', label: '全部类型' },
+  ...FILE_CATEGORIES.map(c => ({ value: c.label, label: c.label })),
+];
 
 // 判断是否为重要文件（数据库/系统文件等）
 function isImportantFile(item: ScanItem): boolean {
@@ -273,11 +258,12 @@ export default function LargeFiles() {
     },
     {
       title: '类型',
-      key: 'ext',
-      width: 90,
+      key: 'category',
+      width: 110,
       render: (_: unknown, record: ScanItem) => {
-        const ext = record.name.split('.').pop()?.toLowerCase() || '?';
-        return <Tag color={getExtColor(ext)}>{ext}</Tag>;
+        const ext = record.name.split('.').pop()?.toLowerCase() || '';
+        const cat = getFileCategory(ext);
+        return <Tag color={cat.color}>{cat.label}</Tag>;
       },
     },
     { title: '路径', dataIndex: 'path', key: 'path', ellipsis: true },
