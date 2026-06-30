@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Modal, Checkbox, Typography, Space, Spin, Empty } from 'antd';
-import { HddOutlined } from '@ant-design/icons';
+import driveImg from '../assets/ui-kit/disk-drive.png';
 
 const { Text } = Typography;
 
@@ -40,7 +40,7 @@ export default function DriveSelectModal({ open, onConfirm, onCancel }: DriveSel
   const options = drives.map((d) => ({
     label: (
       <Space>
-        <HddOutlined style={{ fontSize: 18, color: '#1677ff' }} />
+        <img src={driveImg} alt="磁盘" style={{ width: 24, height: 24 }} />
         <Text strong>{d.letter}:</Text>
         <Text type="secondary">{d.label || `${d.letter}盘`}</Text>
       </Space>

@@ -364,7 +364,7 @@ export default function AIAssistant() {
             <StarOutlined style={{ marginRight: 8 }} />
             已保存的配置预设
           </Title>
-          <Space direction="vertical" style={{ width: '100%' }}>
+          <Space orientation="vertical" style={{ width: '100%' }}>
             {presets.map((item) => {
               const isActive = item.name === activePresetName;
               return (

@@ -3,19 +3,20 @@ import { Button, Card, Col, Row, Space, Spin, Table, Tag, Tooltip, Typography } 
 import type { ColumnsType } from 'antd/es/table';
 import ReactEChartsCore from 'echarts-for-react';
 import {
-  HddOutlined,
   LockOutlined,
   SafetyCertificateOutlined,
   ScanOutlined,
   WarningOutlined,
 } from '@ant-design/icons';
 import gsap from 'gsap';
+import FloatingLines from '../components/FloatingLines';
 import tempCacheImg from '../assets/ui-kit/temp-cache.png';
 import browserCacheImg from '../assets/ui-kit/browser-cache.png';
 import appCacheImg from '../assets/ui-kit/app-cache.png';
 import systemCacheImg from '../assets/ui-kit/system-cache.png';
 import largeFileImg from '../assets/ui-kit/large-file.png';
 import safeCleanImg from '../assets/ui-kit/safe-clean.png';
+import driveImg from '../assets/ui-kit/disk-drive.png';
 
 const { Title, Text } = Typography;
 
@@ -395,12 +396,17 @@ export default function SpaceOverview() {
             style={{
               marginBottom: 16,
               border: 'none',
-              background: 'linear-gradient(135deg, #eef7ff 0%, #effff7 100%)',
+              background: 'linear-gradient(135deg, #dce8f5 0%, #d8f0ec 100%)',
+              position: 'relative',
+              overflow: 'hidden',
             }}
           >
-            <div style={{ textAlign: 'center', padding: '20px 0' }}>
-              <Title level={3} style={{ margin: 0 }}>欢迎使用 C 盘智能清理</Title>
-              <Text type="secondary" style={{ fontSize: 14, display: 'block', marginTop: 8 }}>
+            <div style={{ position: 'absolute', inset: 0, zIndex: 0 }}>
+              <FloatingLines animationSpeed={0.6} linesGradient={['#b8cce0', '#c8dce4']} />
+            </div>
+            <div style={{ textAlign: 'center', padding: '60px 0', position: 'relative', zIndex: 1 }}>
+              <Title level={3} style={{ margin: 0, color: '#1a1a2e' }}>欢迎使用 C 盘智能清理</Title>
+              <Text style={{ fontSize: 14, color: '#4a4a5e', display: 'block', marginTop: 8 }}>
                 一键扫描并安全清理磁盘垃圾文件，释放宝贵的存储空间
               </Text>
             </div>
@@ -415,7 +421,7 @@ export default function SpaceOverview() {
                   onClick={() => handleScanWithDrive(drive.letter)}
                   styles={{ body: { display: 'flex', alignItems: 'center', gap: 12, padding: '20px 16px' } }}
                 >
-                  <HddOutlined style={{ fontSize: 32, color: '#1677ff' }} />
+                  <img src={driveImg} alt={drive.letter} style={{ width: 32, height: 32 }} />
                   <div>
                     <Text strong style={{ fontSize: 15 }}>{drive.letter}:</Text>
                     <div style={{ fontSize: 12, color: '#999', marginTop: 2 }}>{drive.label || drive.path}</div>
@@ -526,7 +532,7 @@ export default function SpaceOverview() {
             </Col>
             <Col span={11}>
               <Card title="分类详情" styles={{ body: { minHeight: 388 } }}>
-                <Space direction="vertical" size={14} style={{ width: '100%' }}>
+                <Space orientation="vertical" size={14} style={{ width: '100%' }}>
                   {categories.map((cat) => {
                     const theme = getCategoryTheme(cat.category);
                     const percent = totalSize > 0 ? (cat.size / totalSize) * 100 : 0;
