@@ -71,8 +71,12 @@ declare global {
     onScanError: (callback: (data: string) => void) => void;
 
     executeClean: (items: ScanItem[]) => Promise<CleanResult>;
+    cancelClean: () => Promise<{ cancelled: boolean }>;
+    restoreItems: (items: ScanItem[]) => Promise<{ restored: number; failed: number; errors: string[] }>;
     onCleanProgress: (callback: (data: CleanProgress) => void) => void;
     onCleanComplete: (callback: (data: CleanResult) => void) => void;
+    onCleanCancelled: (callback: (data: { completedItems: ScanItem[] }) => void) => void;
+    onRestoreProgress: (callback: (data: { current: number; total: number; itemName: string }) => void) => void;
 
     // IPC 监听器清理
     removeAllListeners: (channel: string) => void;
@@ -89,6 +93,9 @@ declare global {
     getAIConfig: () => Promise<AIConfig>;
     analyzeFiles: (files: ScanItem[]) => Promise<{ analysis: Array<{ name: string; type: string; purpose: string; suggestDelete: boolean; reason: string }> } | null>;
     analyzeSingleFile: (item: ScanItem) => Promise<SingleFileAnalysis>;
+    analyzeBatchFiles: (items: ScanItem[]) => Promise<{ cancelled: boolean; results: Array<{ fileId: string; analysis: SingleFileAnalysis | null; error?: string }> }>;
+    cancelBatchAnalysis: () => Promise<{ cancelled: boolean }>;
+    onBatchAnalysisProgress: (callback: (data: { current: number; total: number; currentItem: string }) => void) => void;
     saveAIPreset: (preset: AIConfig & { name: string }) => Promise<void>;
     getAIPresets: () => Promise<(AIConfig & { name: string })[]>;
     deleteAIPreset: (name: string) => Promise<void>;

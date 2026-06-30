@@ -19,11 +19,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // 清理相关
   executeClean: (items) => ipcRenderer.invoke('clean:execute', items),
+  cancelClean: () => ipcRenderer.invoke('clean:cancel'),
+  restoreItems: (items) => ipcRenderer.invoke('clean:restore', items),
   onCleanProgress: (callback) => {
     ipcRenderer.on('clean:progress', (_event, data) => callback(data));
   },
   onCleanComplete: (callback) => {
     ipcRenderer.on('clean:complete', (_event, data) => callback(data));
+  },
+  onCleanCancelled: (callback) => {
+    ipcRenderer.on('clean:cancelled', (_event, data) => callback(data));
+  },
+  onRestoreProgress: (callback) => {
+    ipcRenderer.on('clean:restore-progress', (_event, data) => callback(data));
   },
 
   // 大文件扫描
@@ -44,6 +52,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getAIConfig: () => ipcRenderer.invoke('ai:get-config'),
   analyzeFiles: (files) => ipcRenderer.invoke('ai:analyze-files', files),
   analyzeSingleFile: (item) => ipcRenderer.invoke('ai:analyze-single-file', item),
+  analyzeBatchFiles: (items) => ipcRenderer.invoke('ai:analyze-batch', items),
+  cancelBatchAnalysis: () => ipcRenderer.invoke('ai:batch-cancel'),
+  onBatchAnalysisProgress: (callback) => {
+    ipcRenderer.on('ai:batch-progress', (_event, data) => callback(data));
+  },
   saveAIPreset: (preset) => ipcRenderer.invoke('ai:save-preset', preset),
   getAIPresets: () => ipcRenderer.invoke('ai:get-presets'),
   deleteAIPreset: (name) => ipcRenderer.invoke('ai:delete-preset', name),

@@ -1,7 +1,7 @@
 import { useRef, useEffect } from 'react';
 import gsap from 'gsap';
 
-type Phase = 'idle' | 'scanning' | 'scan-done' | 'cleaning' | 'clean-done' | 'error';
+type Phase = 'idle' | 'scanning' | 'scan-done' | 'cleaning' | 'restoring' | 'clean-done' | 'error';
 
 interface Props {
   phase: Phase;
@@ -67,6 +67,12 @@ const CFG: Record<Phase, PhaseConfig> = {
     vxMul: 0.5, vyBias: 1.2,
     mouseRadius: 180, mouseForce: 1.5,
     fadeOut: 0.005,
+  },
+  restoring: {
+    speed: 0.6,
+    vxMul: 0.4, vyBias: 0.3,
+    mouseRadius: 150, mouseForce: 1.0,
+    glowDecay: 0.97,
   },
   'clean-done': {
     speed: 0.3,

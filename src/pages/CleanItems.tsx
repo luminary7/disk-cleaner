@@ -11,7 +11,7 @@ import {
   Checkbox,
   Row,
 } from 'antd';
-import { ScanOutlined, DeleteOutlined } from '@ant-design/icons';
+import { ScanOutlined, DeleteOutlined, CloseCircleOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import safeCleanImg from '../assets/ui-kit/safe-clean.png';
 import tempCacheImg from '../assets/ui-kit/temp-cache.png';
@@ -51,6 +51,7 @@ export default function CleanItems() {
   const [loading, setLoading] = useState(false);
   const [cleaning, setCleaning] = useState(false);
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
+  const pendingRestoreRef = useRef<ScanItem[]>([]);
 
   // 仅监听增量批次，用于实时滚动展示
   // 用 ref 防止 StrictMode 下重复注册导致文件重复
@@ -64,6 +65,10 @@ export default function CleanItems() {
       if (data.batchItems && data.batchItems.length > 0) {
         setItems(prev => [...prev, ...data.batchItems!]);
       }
+    });
+
+    window.electronAPI.onCleanCancelled((data) => {
+      pendingRestoreRef.current = data.completedItems;
     });
   }, []);
 
@@ -91,11 +96,31 @@ export default function CleanItems() {
     const doClean = async () => {
       if (!window.electronAPI) return;
       setCleaning(true);
+      pendingRestoreRef.current = [];
       try {
-        const result = await window.electronAPI.executeClean(selectedItems);
-        message.success(`已清理 ${result.itemCount} 项，释放 ${formatSize(result.freedBytes)}`);
-        setItems((prev) => prev.filter((i) => !selectedIds.has(i.id)));
-        setSelectedIds(new Set());
+        const result = (await window.electronAPI.executeClean(selectedItems)) as any;
+        if (result.cancelled) {
+          const completed = result.completedItems || [];
+          if (completed.length > 0) {
+            message.loading({ content: '正在回滚已删除文件...', key: 'restore' });
+            const r = await window.electronAPI.restoreItems(completed);
+            if (r.failed > 0) {
+              message.warning({
+                content: `已取消清理，恢复 ${r.restored} 项，${r.failed} 项恢复失败`,
+                key: 'restore',
+                duration: 5,
+              });
+            } else {
+              message.success({ content: `已取消清理，全部 ${r.restored} 项已恢复`, key: 'restore' });
+            }
+          } else {
+            message.info('已取消清理（无已删除文件需要恢复）');
+          }
+        } else {
+          message.success(`已清理 ${result.itemCount} 项，释放 ${formatSize(result.freedBytes)}`);
+          setItems((prev) => prev.filter((i) => !selectedIds.has(i.id)));
+          setSelectedIds(new Set());
+        }
       } finally {
         setCleaning(false);
       }
@@ -248,7 +273,7 @@ export default function CleanItems() {
           )}
         </Space>
         <Space>
-          {items.length > 0 && (
+          {items.length > 0 && !cleaning && (
             <>
               <Button onClick={selectSafe}>仅选安全项目</Button>
               {selectedIds.size > 0 && (
@@ -258,12 +283,20 @@ export default function CleanItems() {
                 type="primary"
                 icon={<DeleteOutlined />}
                 onClick={handleClean}
-                loading={cleaning}
                 disabled={selectedIds.size === 0}
               >
                 清理选中 ({selectedIds.size} 项, {formatSize(totalSelectedSize)})
               </Button>
             </>
+          )}
+          {cleaning && (
+            <Button
+              danger
+              icon={<CloseCircleOutlined />}
+              onClick={() => window.electronAPI?.cancelClean()}
+            >
+              终止清理
+            </Button>
           )}
           <Button
             icon={<DeleteOutlined />}

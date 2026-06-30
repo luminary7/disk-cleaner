@@ -83,8 +83,163 @@ function getSize(itemPath) {
   }
 }
 
+/**
+ * 从回收站批量还原文件
+ * 通过 PowerShell Shell.Application COM 对象查找回收站中的文件并还原
+ * 使用 .ps1 临时文件执行，避免 -Command 引号转义问题
+ * @param {Array<{ path: string }>} items
+ * @param {(current: number, total: number, itemName: string) => void} [onProgress]
+ * @returns {{ restored: number, failed: number, errors: string[] }}
+ */
+async function restoreFromTrash(items, onProgress) {
+  const tmpDir = require('os').tmpdir();
+  const timestamp = Date.now();
+  const tmpFile = path.join(tmpDir, `clean-restore-${timestamp}.json`);
+  const psFile = path.join(tmpDir, `clean-restore-${timestamp}.ps1`);
+  const paths = items.map(i => i.path);
+
+  // 将待还原路径写入临时 JSON 文件
+  try {
+    fs.writeFileSync(tmpFile, JSON.stringify(paths), 'utf8');
+  } catch (err) {
+    return { restored: 0, failed: items.length, errors: [`无法写入临时文件: ${err.message}`] };
+  }
+
+  try {
+    // 将 PowerShell 脚本写入临时 .ps1 文件（避免 -Command 引号转义问题）
+    const psScript = `$paths = Get-Content '${tmpFile.replace(/'/g, "''")}' -Raw | ConvertFrom-Json
+$shell = New-Object -ComObject Shell.Application
+$recycleBin = $shell.NameSpace(0xa)
+$results = @()
+
+foreach ($targetPath in $paths) {
+  $found = $false
+  foreach ($rItem in $recycleBin.Items()) {
+    $orig = $recycleBin.GetDetailsOf($rItem, 1)
+    if ($orig -eq $targetPath) {
+      try {
+        $rItem.InvokeVerb("restore")
+        $results += @{ Path = $targetPath; Success = $true }
+      } catch {
+        $results += @{ Path = $targetPath; Success = $false; Error = $_.Exception.Message }
+      }
+      $found = $true
+      break
+    }
+  }
+  if (-not $found) {
+    $results += @{ Path = $targetPath; Success = $false; Error = "NotInRecycleBin" }
+  }
+}
+
+$results | ConvertTo-Json -Compress
+`;
+    fs.writeFileSync(psFile, psScript, 'utf8');
+
+    const output = execSync(
+      `powershell -NoProfile -ExecutionPolicy Bypass -File "${psFile.replace(/"/g, '\\"')}"`,
+      { timeout: 120000, encoding: 'utf8', maxBuffer: 10 * 1024 * 1024 }
+    );
+
+    const parsed = JSON.parse(output.trim());
+    // 进度回调
+    for (let i = 0; i < parsed.length; i++) {
+      const item = items[i] || {};
+      onProgress?.(i + 1, items.length, item.name || '');
+    }
+
+    const restored = parsed.filter(r => r.Success).length;
+    const failed = parsed.filter(r => !r.Success).length;
+    // 如果全部是 NotInRecycleBin，可能是列索引不对，尝试用列 0（名称）+ 列 2（原始路径的备用方案）
+    if (restored === 0 && failed > 0 && parsed.every(r => r.Error === 'NotInRecycleBin')) {
+      return await restoreFromTrashFallback(items, onProgress);
+    }
+    return {
+      restored,
+      failed,
+      errors: parsed.filter(r => !r.Success).map(r => r.Error || r.Path),
+    };
+  } catch (err) {
+    return { restored: 0, failed: items.length, errors: [`PowerShell 执行失败: ${err.message}`] };
+  } finally {
+    try { fs.unlinkSync(tmpFile); } catch {}
+    try { fs.unlinkSync(psFile); } catch {}
+  }
+}
+
+/**
+ * 备用方案：尝试不同的列索引组合
+ * 某些 Windows 版本/语言环境下，"原始位置"可能不在列 1
+ */
+async function restoreFromTrashFallback(items, onProgress) {
+  const tmpDir = require('os').tmpdir();
+  const timestamp = Date.now();
+  const tmpFile = path.join(tmpDir, `clean-restore-fb-${timestamp}.json`);
+  const psFile = path.join(tmpDir, `clean-restore-fb-${timestamp}.ps1`);
+  const paths = items.map(i => i.path);
+
+  try {
+    fs.writeFileSync(tmpFile, JSON.stringify(paths), 'utf8');
+
+    // 尝试列 0（名称，可能包含完整路径）和列 2 作为备选
+    const psScript = `$paths = Get-Content '${tmpFile.replace(/'/g, "''")}' -Raw | ConvertFrom-Json
+$shell = New-Object -ComObject Shell.Application
+$recycleBin = $shell.NameSpace(0xa)
+$results = @()
+
+foreach ($targetPath in $paths) {
+  $found = $false
+  $targetName = [System.IO.Path]::GetFileName($targetPath)
+  foreach ($rItem in $recycleBin.Items()) {
+    $col0 = $recycleBin.GetDetailsOf($rItem, 0)
+    $col2 = $recycleBin.GetDetailsOf($rItem, 2)
+    # 尝试列 0 完整匹配、列 2 完整匹配、或名称匹配后校验完整路径
+    if ($col0 -eq $targetPath -or $col2 -eq $targetPath -or $col0 -eq $targetName) {
+      try {
+        $rItem.InvokeVerb("restore")
+        $results += @{ Path = $targetPath; Success = $true }
+      } catch {
+        $results += @{ Path = $targetPath; Success = $false; Error = $_.Exception.Message }
+      }
+      $found = $true
+      break
+    }
+  }
+  if (-not $found) {
+    $results += @{ Path = $targetPath; Success = $false; Error = "NotInRecycleBin" }
+  }
+}
+
+$results | ConvertTo-Json -Compress
+`;
+    fs.writeFileSync(psFile, psScript, 'utf8');
+
+    const output = execSync(
+      `powershell -NoProfile -ExecutionPolicy Bypass -File "${psFile.replace(/"/g, '\\"')}"`,
+      { timeout: 120000, encoding: 'utf8', maxBuffer: 10 * 1024 * 1024 }
+    );
+
+    const parsed = JSON.parse(output.trim());
+    for (let i = 0; i < parsed.length; i++) {
+      const item = items[i] || {};
+      onProgress?.(i + 1, items.length, item.name || '');
+    }
+    return {
+      restored: parsed.filter(r => r.Success).length,
+      failed: parsed.filter(r => !r.Success).length,
+      errors: parsed.filter(r => !r.Success).map(r => r.Error || r.Path),
+    };
+  } catch (err) {
+    return { restored: 0, failed: items.length, errors: [`PowerShell 执行失败: ${err.message}`] };
+  } finally {
+    try { fs.unlinkSync(tmpFile); } catch {}
+    try { fs.unlinkSync(psFile); } catch {}
+  }
+}
+
 module.exports = {
   moveToTrash,
   moveBatchToTrash,
   createSystemRestorePoint,
+  restoreFromTrash,
 };

@@ -22,7 +22,7 @@ import cautionProtectImg from '../assets/ui-kit/caution-protect.png';
 
 const { Title, Text } = Typography;
 
-type Phase = 'idle' | 'scanning' | 'scan-done' | 'cleaning' | 'clean-done' | 'error';
+type Phase = 'idle' | 'scanning' | 'scan-done' | 'cleaning' | 'restoring' | 'clean-done' | 'error';
 const PAGE_SIZE = 50;
 
 function formatSize(bytes: number): string {
@@ -70,6 +70,9 @@ export default function SimpleMode({ onSwitchToAdvanced }: Props) {
   const [totalScanSize, setTotalScanSize] = useState(0);
   const [cleanResult, setCleanResult] = useState<{ freedBytes: number } | null>(null);
   const [cleaningProgress, setCleaningProgress] = useState({ current: 0, total: 0 });
+  const [restoreProgress, setRestoreProgress] = useState({ current: 0, total: 0, itemName: '' });
+  const [restoreResult, setRestoreResult] = useState<{ restored: number; failed: number } | null>(null);
+  const pendingRestoreRef = useRef<ScanItem[]>([]);
   const [errorMsg, setErrorMsg] = useState('');
   const [showDriveSelect, setShowDriveSelect] = useState(false);
 
@@ -146,6 +149,14 @@ export default function SimpleMode({ onSwitchToAdvanced }: Props) {
       setPhase('clean-done');
     });
 
+    window.electronAPI.onCleanCancelled((data) => {
+      pendingRestoreRef.current = data.completedItems;
+    });
+
+    window.electronAPI.onRestoreProgress((data) => {
+      setRestoreProgress(data);
+    });
+
     window.electronAPI.onScanError((data) => {
       setErrorMsg(data);
       setPhase('error');
@@ -159,6 +170,8 @@ export default function SimpleMode({ onSwitchToAdvanced }: Props) {
       window.electronAPI.removeAllListeners('scan:error');
       window.electronAPI.removeAllListeners('clean:progress');
       window.electronAPI.removeAllListeners('clean:complete');
+      window.electronAPI.removeAllListeners('clean:cancelled');
+      window.electronAPI.removeAllListeners('clean:restore-progress');
     };
   }, []);
 
@@ -268,8 +281,18 @@ export default function SimpleMode({ onSwitchToAdvanced }: Props) {
     const items = allScanItems.filter(i => i.safety !== 'keep');
     if (items.length === 0) return;
     setPhase('cleaning');
+    setRestoreResult(null);
+    setRestoreProgress({ current: 0, total: 0, itemName: '' });
+    pendingRestoreRef.current = [];
     try {
-      await window.electronAPI.executeClean(items);
+      const result = (await window.electronAPI.executeClean(items)) as any;
+      if (result.cancelled) {
+        pendingRestoreRef.current = result.completedItems || [];
+        await doRestore();
+      } else {
+        setCleanResult({ freedBytes: result.freedBytes });
+        setPhase('clean-done');
+      }
     } catch (err: any) {
       setErrorMsg(`清理失败: ${err?.message || '未知错误'}`);
       setPhase('error');
@@ -281,13 +304,41 @@ export default function SimpleMode({ onSwitchToAdvanced }: Props) {
     const items = allScanItems.filter(i => i.safety === 'safe');
     if (items.length === 0) return;
     setPhase('cleaning');
+    setRestoreResult(null);
+    setRestoreProgress({ current: 0, total: 0, itemName: '' });
+    pendingRestoreRef.current = [];
     try {
-      await window.electronAPI.executeClean(items);
+      const result = (await window.electronAPI.executeClean(items)) as any;
+      if (result.cancelled) {
+        pendingRestoreRef.current = result.completedItems || [];
+        await doRestore();
+      } else {
+        setCleanResult({ freedBytes: result.freedBytes });
+        setPhase('clean-done');
+      }
     } catch (err: any) {
       setErrorMsg(`清理失败: ${err?.message || '未知错误'}`);
       setPhase('error');
     }
   }, [allScanItems]);
+
+  const doRestore = useCallback(async () => {
+    const completed = pendingRestoreRef.current;
+    if (completed.length === 0) {
+      message.info('没有文件需要恢复');
+      setPhase('scan-done');
+      return;
+    }
+    setPhase('restoring');
+    try {
+      const r = await window.electronAPI!.restoreItems(completed);
+      setRestoreResult({ restored: r.restored, failed: r.failed });
+      setPhase('clean-done');
+    } catch (err: any) {
+      setErrorMsg(`回滚失败: ${err?.message || '未知错误'}`);
+      setPhase('error');
+    }
+  }, []);
 
   const handleReset = useCallback(() => {
     setPhase('idle');
@@ -730,14 +781,62 @@ export default function SimpleMode({ onSwitchToAdvanced }: Props) {
             <Text type="secondary" style={{ marginTop: 16 }}>
               第 {cleaningProgress.current} / {cleaningProgress.total} 项
             </Text>
+            <Button
+              danger
+              icon={<DeleteOutlined />}
+              onClick={async () => {
+                await window.electronAPI?.cancelClean();
+              }}
+              style={{ marginTop: 20, width: '100%' }}
+            >
+              终止清理
+            </Button>
           </div>
           {/* 右面板：仍然显示文件列表 */}
           {renderFileListPanel(true)}
         </div>
       )}
 
+      {/* RESTORING 阶段 */}
+      {phase === 'restoring' && (
+        <div style={{ flex: 1, display: 'flex', gap: 20, overflow: 'hidden', paddingTop: 40 }}>
+          <div
+            style={{
+              width: 260,
+              flexShrink: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'rgba(255,255,255,0.85)',
+              borderRadius: 12,
+              padding: '32px 24px',
+              border: '1px solid rgba(255,255,255,0.9)',
+            }}
+          >
+            <img src={cautionProtectImg} alt="正在回滚" style={{ width: 160, height: 'auto', marginBottom: 12 }} />
+            <Title level={4} style={{ margin: '0 0 16px', color: '#faad14' }}>正在回滚已删除文件...</Title>
+            <Progress
+              type="circle"
+              percent={restoreProgress.total > 0 ? Math.round((restoreProgress.current / restoreProgress.total) * 100) : 0}
+              status="active"
+              size={100}
+            />
+            <Text type="secondary" style={{ marginTop: 16 }}>
+              第 {restoreProgress.current} / {restoreProgress.total} 项
+            </Text>
+            {restoreProgress.itemName && (
+              <Text type="secondary" style={{ marginTop: 8, fontSize: 12, textAlign: 'center', wordBreak: 'break-all' }}>
+                {restoreProgress.itemName}
+              </Text>
+            )}
+          </div>
+          {renderFileListPanel(true)}
+        </div>
+      )}
+
       {/* CLEAN-DONE 阶段 */}
-      {phase === 'clean-done' && cleanResult && (
+      {phase === 'clean-done' && (cleanResult || restoreResult) && (
         <div
           className="clean-done-content"
           style={{
@@ -748,22 +847,66 @@ export default function SimpleMode({ onSwitchToAdvanced }: Props) {
           }}
         >
           <div style={{ textAlign: 'center' }}>
-            <img src={safeCleanImg} alt="清理完成" style={{ width: 160, height: 'auto', marginBottom: 16 }} />
-            <Title level={2} style={{ margin: '0 0 4px' }}>
-              已释放 {formatSize(cleanResult.freedBytes)}！
-            </Title>
-            <Text type="secondary" style={{ fontSize: 15, display: 'block', marginBottom: 28 }}>
-              C盘空间已成功清理
-            </Text>
-            <Button
-              type="primary"
-              size="large"
-              icon={<ReloadOutlined />}
-              onClick={handleReset}
-              style={{ height: 44, paddingInline: 32, fontSize: 16 }}
-            >
-              再扫一次
-            </Button>
+            {cleanResult ? (
+              <>
+                <img src={safeCleanImg} alt="清理完成" style={{ width: 160, height: 'auto', marginBottom: 16 }} />
+                <Title level={2} style={{ margin: '0 0 4px' }}>
+                  已释放 {formatSize(cleanResult.freedBytes)}！
+                </Title>
+                <Text type="secondary" style={{ fontSize: 15, display: 'block', marginBottom: 28 }}>
+                  C盘空间已成功清理
+                </Text>
+                <Button
+                  type="primary"
+                  size="large"
+                  icon={<ReloadOutlined />}
+                  onClick={handleReset}
+                  style={{ height: 44, paddingInline: 32, fontSize: 16 }}
+                >
+                  再扫一次
+                </Button>
+              </>
+            ) : (
+              <>
+                <img src={cautionProtectImg} alt="回滚完成" style={{ width: 160, height: 'auto', marginBottom: 16 }} />
+                <Title level={2} style={{ margin: '0 0 4px', color: restoreResult!.failed > 0 ? '#faad14' : '#52c41a' }}>
+                  已取消清理
+                </Title>
+                <Text type="secondary" style={{ fontSize: 15, display: 'block', marginBottom: 8 }}>
+                  已恢复 {restoreResult!.restored} 项
+                </Text>
+                {restoreResult!.failed > 0 && (
+                  <Text type="secondary" style={{ fontSize: 14, display: 'block', marginBottom: 4, color: '#ff4d4f' }}>
+                    {restoreResult!.failed} 项恢复失败
+                  </Text>
+                )}
+                {restoreResult!.failed > 0 && (
+                  <Button
+                    type="default"
+                    size="large"
+                    icon={<DeleteOutlined />}
+                    onClick={() => window.electronAPI?.openRecycleBin()}
+                    style={{ height: 44, paddingInline: 32, fontSize: 16, marginBottom: 12 }}
+                  >
+                    打开回收站
+                  </Button>
+                )}
+                {restoreResult!.failed <= 0 && (
+                  <Text type="secondary" style={{ fontSize: 13, display: 'block', marginBottom: 20 }}>
+                    所有文件已成功回滚
+                  </Text>
+                )}
+                <Button
+                  type="primary"
+                  size="large"
+                  icon={<ReloadOutlined />}
+                  onClick={handleReset}
+                  style={{ height: 44, paddingInline: 32, fontSize: 16, marginTop: 12 }}
+                >
+                  返回
+                </Button>
+              </>
+            )}
           </div>
         </div>
       )}

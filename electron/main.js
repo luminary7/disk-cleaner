@@ -15,6 +15,10 @@ let mainWindow = null;
 let store = null;
 let aiProvider = null;
 
+// 清理取消状态（模块级，跨 clean:execute workers 共享）
+let cleanCancelled = false;
+let cleanCompletedItems = [];
+
 // ── 窗口创建 ──
 
 function createWindow() {
@@ -121,8 +125,11 @@ function registerIPC() {
     return drives;
   });
 
-  // ========= 清理（并发池，50 条同时移动）=========
+  // ========= 清理（并发池，200 条同时移动，支持取消）=========
   ipcMain.handle('clean:execute', async (_event, items) => {
+    cleanCancelled = false;
+    cleanCompletedItems = [];
+
     const total = items.length;
     const CONCURRENCY = 200;
     const results = new Array(total);
@@ -130,14 +137,16 @@ function registerIPC() {
     let nextIdx = 0;
 
     async function worker() {
-      while (true) {
+      while (!cleanCancelled) {
         const idx = nextIdx++;
         if (idx >= total) break;
         const item = items[idx];
         const r = await fileOperator.moveToTrash(item.path);
         results[idx] = { ...item, success: r.success, error: r.error };
         completed++;
-        // 每完成 50 条或最后一批时上报进度
+        if (r.success) {
+          cleanCompletedItems.push(item);
+        }
         if (completed % CONCURRENCY === 0 || completed === total) {
           mainWindow?.webContents.send('clean:progress', {
             current: completed,
@@ -152,6 +161,15 @@ function registerIPC() {
     const workers = Array.from({ length: poolSize }, () => worker());
     await Promise.all(workers);
 
+    // 被取消时发送 clean:cancelled 事件，不执行完成逻辑
+    if (cleanCancelled) {
+      mainWindow?.webContents.send('clean:cancelled', {
+        completedItems: cleanCompletedItems,
+      });
+      return { cancelled: true, completedCount: cleanCompletedItems.length, completedItems: cleanCompletedItems };
+    }
+
+    // 正常完成
     const successCount = results.filter((r) => r.success).length;
     const freedBytes = results
       .filter((r) => r.success)
@@ -165,7 +183,69 @@ function registerIPC() {
     return { itemCount: successCount, freedBytes };
   });
 
+  // ========= 取消清理 =========
+  ipcMain.handle('clean:cancel', async () => {
+    cleanCancelled = true;
+    return { cancelled: true };
+  });
+
+  // ========= 回滚清理（从回收站还原）=========
+  ipcMain.handle('clean:restore', async (_event, items) => {
+    const result = await fileOperator.restoreFromTrash(items, (current, total, itemName) => {
+      mainWindow?.webContents.send('clean:restore-progress', { current, total, itemName });
+    });
+    // 回滚完成后重置取消状态
+    cleanCancelled = false;
+    cleanCompletedItems = [];
+    return result;
+  });
+
   // ========= AI =========
+  let batchCancelRequested = false;
+
+  // 批量文件分析（3 并发，可取消）
+  ipcMain.handle('ai:analyze-batch', async (_event, items) => {
+    batchCancelRequested = false;
+    const total = items.length;
+    const results = new Array(total);
+    let completed = 0;
+    let nextIdx = 0;
+
+    async function worker() {
+      while (!batchCancelRequested) {
+        const idx = nextIdx++;
+        if (idx >= total) break;
+        const item = items[idx];
+        try {
+          const detail = await getFileDetail(item.path, item);
+          const analysis = await aiProvider.analyzeSingleFile(detail);
+          results[idx] = { fileId: item.id, analysis };
+        } catch (err) {
+          results[idx] = { fileId: item.id, analysis: null, error: err.message };
+        }
+        completed++;
+        mainWindow?.webContents.send('ai:batch-progress', {
+          current: completed, total,
+          currentItem: item.name || '',
+        });
+      }
+    }
+
+    const poolSize = Math.min(3, total);
+    const workers = Array.from({ length: poolSize }, () => worker());
+    await Promise.all(workers);
+
+    if (batchCancelRequested) {
+      return { cancelled: true, results: results.filter(Boolean) };
+    }
+    return { cancelled: false, results: results.filter(Boolean) };
+  });
+
+  ipcMain.handle('ai:batch-cancel', async () => {
+    batchCancelRequested = true;
+    return { cancelled: true };
+  });
+
   ipcMain.handle('ai:test-connection', async (_event, config) => {
     const provider = new AIProvider(config);
     return await provider.testConnection();
