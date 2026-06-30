@@ -240,7 +240,7 @@ class AIProvider {
       return `${i + 1}. [${ext}] ${f.path} | ${sizeMB}MB | 系统评级: ${levelText}`;
     }).join('\n');
 
-    const systemPrompt = '你是一个 Windows 磁盘清理专家。逐条判断每个文件是否可安全删除。回复严格按 JSON 格式: {"results":[{"path":"完整路径","safety":"safe/caution/keep","reason":"10字内理由"}]}';
+    const systemPrompt = '你是一个 Windows 磁盘清理专家。逐条判断每个文件是否可安全删除。只返回纯 JSON，不要 markdown 代码块，不要多余文字。格式: {"results":[{"path":"完整路径","safety":"safe/caution/keep","reason":"10字内理由"}]}';
 
     const response = await this._request('/chat/completions', {
       model: this.model,
@@ -257,20 +257,40 @@ class AIProvider {
       throw new Error('AI 返回内容为空，请检查 API 配置或重试');
     }
 
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error('AI 响应中未找到有效的 JSON，请重试');
+    // 多策略提取 JSON：先试 markdown 代码块 → 再试首尾花括号
+    let jsonStr = null;
+
+    // 1. 尝试从 ```json ... ``` 或 ``` ... ``` 提取
+    const codeMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (codeMatch) {
+      jsonStr = codeMatch[1].trim();
+    } else {
+      // 2. 尝试从第一个 { 到最后一个 }
+      const braceMatch = content.match(/\{[\s\S]*\}/);
+      if (braceMatch) {
+        jsonStr = braceMatch[0];
+      }
     }
 
+    if (!jsonStr) {
+      throw new Error(`AI 响应中未找到 JSON。响应: ${content.slice(0, 200)}`);
+    }
+
+    // 清理常见 JSON 格式问题
+    jsonStr = jsonStr
+      .replace(/,\s*}/g, '}')   // 对象末尾逗号
+      .replace(/,\s*]/g, ']')   // 数组末尾逗号
+      .trim();
+
     try {
-      const parsed = JSON.parse(jsonMatch[0]);
+      const parsed = JSON.parse(jsonStr);
       if (!parsed.results || !Array.isArray(parsed.results)) {
         throw new Error('AI 返回格式异常：缺少 results 数组');
       }
       return parsed.results;
     } catch (err) {
       if (err instanceof SyntaxError) {
-        throw new Error('AI 返回的 JSON 格式无法解析，请重试');
+        throw new Error(`AI 返回的 JSON 无法解析。原始响应: ${content.slice(0, 300)}`);
       }
       throw err;
     }

@@ -72,20 +72,15 @@ function cleanAIError(err: any): string {
   const idx = msg.lastIndexOf('Error: ');
   return idx >= 0 ? msg.slice(idx + 7) : msg || '请检查 AI 配置';
 }
-// 判断文件是否重要（不可随意删除），优先使用 AI 裁定
+// 判断文件是否重要（不可随意删除），综合系统与 AI 判定
+// 两者都标记为 keep 才算重要文件，任一认为可删即不算
 function isImportantFile(item: ScanItem, aiSafetyMap?: Map<string, { safety: string }>): boolean {
-  // 有 AI 评估时以 AI 为准
+  if (item.safety !== 'keep') return false;
   if (aiSafetyMap) {
     const ai = aiSafetyMap.get(item.id);
-    if (ai && ai.safety !== 'safe') return true;
-    if (ai && ai.safety === 'safe') return false;
+    if (ai && ai.safety !== 'keep') return false;
   }
-  // 无 AI 评估时回退规则引擎
-  if (item.safety !== 'safe') return true;
-  const ext = item.name.split('.').pop()?.toLowerCase() || '';
-  const dangerousExts = ['db', 'sqlite', 'sqlite3', 'mdb', 'dbx', 'mysql', 'sql', 'dbf',
-    'exe', 'dll', 'msi', 'sys', 'ocx', 'drv', 'cpl'];
-  return dangerousExts.includes(ext);
+  return true;
 }
 
 const SAFETY_TAGS: Record<string, { text: string; color: string }> = {
@@ -95,10 +90,17 @@ const SAFETY_TAGS: Record<string, { text: string; color: string }> = {
 };
 
 const AI_SAFETY_TAGS: Record<string, { text: string; color: string }> = {
-  safe: { text: 'AI: 可删', color: 'green' },
-  caution: { text: 'AI: 谨慎', color: 'orange' },
-  keep: { text: 'AI: 保留', color: 'red' },
+  safe: { text: 'AI 可安全删除', color: 'green' },
+  caution: { text: 'AI 谨慎清理', color: 'orange' },
+  keep: { text: 'AI 禁止清理', color: 'red' },
 };
+
+// 将单文件分析结果映射为 aiSafetyMap 格式（综合判断用）
+function mapToAISafety(analysis: SingleFileAnalysis): { safety: 'safe' | 'caution' | 'keep'; reason: string } {
+  if (analysis.suggestDelete) return { safety: 'safe', reason: analysis.reason };
+  if (analysis.riskLevel === 'high') return { safety: 'keep', reason: analysis.reason };
+  return { safety: 'caution', reason: analysis.reason };
+}
 
 export default function LargeFiles() {
   const [files, setFiles] = useState<ScanItem[]>([]);
@@ -148,20 +150,26 @@ export default function LargeFiles() {
     });
   }, []);
 
-  // 文件更新时自动取消勾选"禁止清理"项
+  // 文件或 AI 结果更新时自动取消勾选"两者都标记 keep"的项
   useEffect(() => {
-    const keepIds = new Set(files.filter(f => f.safety === 'keep').map(f => f.id));
+    const combinedKeepIds = new Set(
+      files.filter(f => {
+        if (f.safety !== 'keep') return false;
+        const ai = aiSafetyMap.get(f.id);
+        return !ai || ai.safety === 'keep';
+      }).map(f => f.id)
+    );
     setSelectedIds(prev => {
       let changed = false;
       for (const id of prev) {
-        if (keepIds.has(id)) { changed = true; break; }
+        if (combinedKeepIds.has(id)) { changed = true; break; }
       }
       if (!changed) return prev;
       const next = new Set(prev);
-      keepIds.forEach(id => next.delete(id));
+      combinedKeepIds.forEach(id => next.delete(id));
       return next;
     });
-  }, [files]);
+  }, [files, aiSafetyMap]);
 
   const handleScan = () => {
     if (!window.electronAPI) return;
@@ -238,11 +246,11 @@ export default function LargeFiles() {
     if (!window.electronAPI) return;
     // 关闭倒计时弹窗
     setCountdownState(null);
-    // 安全过滤：优先 AI 裁定，其次规则引擎
+    // 安全过滤：系统或 AI 任一认为可删即可删除
     const cleanFiles = targetFiles.filter(f => {
+      if (f.safety !== 'keep') return true;
       const ai = aiSafetyMap.get(f.id);
-      const safety = ai ? ai.safety : f.safety;
-      return safety !== 'keep';
+      return ai && ai.safety !== 'keep';
     });
     if (cleanFiles.length === 0) {
       message.warning('选中文件中无可删除项目');
@@ -276,6 +284,12 @@ export default function LargeFiles() {
         next.set(item.id, result);
         return next;
       });
+      // 同步更新 AI 风险评估列和综合删除判断
+      setAiSafetyMap(prev => {
+        const next = new Map(prev);
+        next.set(item.id, mapToAISafety(result));
+        return next;
+      });
       // 分析完成后自动弹出建议详情
       setViewingFileId(item.id);
     } catch (err: any) {
@@ -295,32 +309,51 @@ export default function LargeFiles() {
     .filter((f) => typeFilter === 'all' || guessFileType(f.name) === typeFilter)
     .filter((f) => safetyFilter === 'all' || getEffectiveSafety(f) === safetyFilter);
 
-  // 批量 AI 分析 — 一次性发送所有文件，AI 返回每条的安全裁定
+  // 批量 AI 分析 — 每次分析最大的 10 个未分析文件
   const handleBatchAnalysis = useCallback(async () => {
     if (!window.electronAPI || loading) return;
 
-    const unanalyzed = files.filter(f => !aiSafetyMap.has(f.id));
-    if (unanalyzed.length === 0) {
+    // 按大小降序排列，取前 10 个未分析文件
+    const sorted = [...files].sort((a, b) => b.size - a.size);
+    const unanalyzed = sorted.filter(f => !aiSafetyMap.has(f.id));
+    const total = unanalyzed.length;
+    if (total === 0) {
       message.info('所有文件已通过 AI 评估');
       return;
     }
 
-    setBatchProgress({ current: 0, total: unanalyzed.length, currentItem: '' });
+    const batchSize = Math.min(10, total);
+    const batch = unanalyzed.slice(0, batchSize);
+    const remaining = total - batchSize;
+
+    setBatchProgress({ current: 0, total: batchSize, currentItem: `准备分析 0/${batchSize}` });
+
     try {
-      const result = await window.electronAPI.analyzeLargeFiles(unanalyzed);
-      if (result.results && result.results.length > 0) {
-        // 按路径匹配文件，存入 aiSafetyMap
-        const newMap = new Map(aiSafetyMap);
-        let matched = 0;
-        for (const r of result.results) {
-          const file = files.find(f => f.path === r.path);
-          if (file) {
-            newMap.set(file.id, { safety: r.safety, reason: r.reason });
-            matched++;
-          }
-        }
-        setAiSafetyMap(newMap);
-        message.success(`AI 评估完成，共评估 ${matched} 个文件`);
+      for (let i = 0; i < batchSize; i++) {
+        const file = batch[i];
+        setBatchProgress({ current: i + 1, total: batchSize, currentItem: `正在分析 ${i + 1}/${batchSize}: ${file.name}` });
+
+        const result = await window.electronAPI.analyzeSingleFile(file);
+
+        // 存入 singleAnalysisMap（供 AI 建议详情弹窗使用）
+        setSingleAnalysisMap(prev => {
+          const next = new Map(prev);
+          next.set(file.id, result);
+          return next;
+        });
+
+        // 映射到 aiSafetyMap（供 AI 风险评估列和综合删除判断）
+        setAiSafetyMap(prev => {
+          const next = new Map(prev);
+          next.set(file.id, mapToAISafety(result));
+          return next;
+        });
+      }
+
+      if (remaining > 0) {
+        message.success(`已分析 ${batchSize} 个文件，剩余 ${remaining} 个未评估`);
+      } else {
+        message.success(`AI 评估完成，共分析 ${total} 个文件`);
       }
     } catch (err: any) {
       message.error(`AI 评估失败: ${cleanAIError(err)}`);
@@ -328,20 +361,6 @@ export default function LargeFiles() {
       setBatchProgress(null);
     }
   }, [files, aiSafetyMap, loading]);
-
-  // 监听批量分析进度
-  useEffect(() => {
-    if (!window.electronAPI) return;
-    const handler = (data: { current: number; total: number; currentItem: string }) => {
-      setBatchProgress(data);
-    };
-    window.electronAPI.onBatchAnalysisProgress(handler);
-    return () => {
-      if (window.electronAPI?.removeAllListeners) {
-        window.electronAPI.removeAllListeners('ai:batch-progress');
-      }
-    };
-  }, []);
 
   // 检查 AI 是否已配置
   useEffect(() => {
@@ -403,7 +422,6 @@ export default function LargeFiles() {
         );
       },
     },
-    { title: '修改时间', dataIndex: 'description', key: 'modified' },
     {
       title: 'AI 建议',
       key: 'ai-suggestion',
@@ -423,6 +441,7 @@ export default function LargeFiles() {
         );
       },
     },
+    { title: '修改时间', dataIndex: 'description', key: 'modified', width: 140 },
     {
       title: '操作',
       key: 'action',
@@ -492,10 +511,10 @@ export default function LargeFiles() {
             onClick={handleBatchAnalysis}
             loading={!!batchProgress}
             disabled={!aiReady || loading}
-            title={!aiReady ? '请先在 AI 配置中设置 API Key' : loading ? '扫描中无法分析' : ''}
+            title={!aiReady ? '请先在 AI 配置中设置 API Key' : loading ? '扫描中无法分析' : '每次分析一个最大的未评估文件'}
             style={{ fontSize: 13 }}
           >
-            {batchProgress ? `AI 评估中` : 'AI 风险评估'}
+            {batchProgress ? batchProgress.currentItem : 'AI 批量分析'}
           </Button>
           <Button
             icon={<FolderOpenOutlined />}
@@ -600,7 +619,8 @@ export default function LargeFiles() {
             selectedRowKeys: Array.from(selectedIds),
             onChange: (keys) => setSelectedIds(new Set(keys as string[])),
             getCheckboxProps: (record: ScanItem) => ({
-              disabled: record.safety === 'keep',
+              // 系统与 AI 均标记 keep（或无 AI 结果时系统标记 keep）才禁用勾选
+              disabled: record.safety === 'keep' && (!aiSafetyMap.has(record.id) || aiSafetyMap.get(record.id)!.safety === 'keep'),
             }),
           }}
           locale={{
