@@ -1,0 +1,213 @@
+<style>
+  .approval-wrap {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
+    gap: 22px;
+    margin-top: 20px;
+  }
+
+  .panel {
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    background: #fff;
+    padding: 18px;
+  }
+
+  .asset-table {
+    display: grid;
+    gap: 10px;
+  }
+
+  .asset-row {
+    display: grid;
+    grid-template-columns: 52px minmax(0, 1fr) 118px;
+    align-items: center;
+    gap: 12px;
+    padding: 10px;
+    border: 1px solid #edf2f7;
+    border-radius: 10px;
+    background: #fbfdff;
+  }
+
+  .mini-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #1677ff, #52c41a);
+    box-shadow: 0 10px 22px rgba(22, 119, 255, 0.16);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .mini-icon::after {
+    content: "";
+    position: absolute;
+    inset: 12px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.42);
+  }
+
+  .mini-icon.browser { background: linear-gradient(135deg, #1677ff, #13c2c2); }
+  .mini-icon.app { background: linear-gradient(135deg, #52c41a, #faad14); }
+  .mini-icon.system { background: linear-gradient(135deg, #ff4d4f, #faad14); }
+  .mini-icon.large { background: linear-gradient(135deg, #722ed1, #1677ff); }
+  .mini-icon.ai { background: linear-gradient(135deg, #13c2c2, #2f54eb); }
+  .mini-icon.scan { background: conic-gradient(from 30deg, #1677ff, #52c41a, #1677ff); }
+  .mini-icon.safe { background: linear-gradient(135deg, #12b76a, #52c41a); }
+  .mini-icon.caution { background: linear-gradient(135deg, #faad14, #ff4d4f); }
+
+  .asset-title {
+    font-weight: 650;
+    color: #101828;
+  }
+
+  .asset-note {
+    color: #667085;
+    font-size: 13px;
+    margin-top: 3px;
+  }
+
+  .size-pill {
+    font-size: 12px;
+    color: #175cd3;
+    background: #eff8ff;
+    border: 1px solid #b2ddff;
+    border-radius: 999px;
+    padding: 4px 9px;
+    text-align: center;
+  }
+
+  .mock-area {
+    height: 360px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #eef7ff 0%, #f1fff8 100%);
+    border: 1px solid rgba(22, 119, 255, 0.12);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .mock-area::before {
+    content: "";
+    position: absolute;
+    width: 330px;
+    height: 330px;
+    border-radius: 50%;
+    left: 50%;
+    top: 48%;
+    transform: translate(-50%, -50%);
+    background: radial-gradient(circle, rgba(22, 119, 255, 0.22), rgba(82, 196, 26, 0.17), transparent 70%);
+  }
+
+  .mock-card {
+    position: absolute;
+    left: 48px;
+    right: 48px;
+    top: 62px;
+    height: 220px;
+    border-radius: 18px;
+    background: rgba(255,255,255,0.72);
+    border: 1px solid rgba(255,255,255,0.88);
+    box-shadow: 0 22px 54px rgba(15, 23, 42, 0.08);
+    display: grid;
+    grid-template-columns: repeat(2, 74px);
+    grid-template-rows: repeat(2, 74px);
+    place-content: center;
+    gap: 18px;
+  }
+
+  .checklist {
+    margin-top: 14px;
+    display: grid;
+    gap: 8px;
+    color: #344054;
+    font-size: 14px;
+  }
+
+  .approve {
+    margin-top: 18px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #027a48;
+    background: #ecfdf3;
+    border: 1px solid #abefc6;
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-weight: 650;
+  }
+</style>
+
+<h2>最终设计：柔和轻 3D 分类与状态素材包</h2>
+<p class="subtitle">生成 9 张 PNG，新文件会放在 <strong>src/assets/ui-kit/</strong>，不覆盖当前已有 logo、hero、icon 等资源。</p>
+
+<div class="approval-wrap">
+  <div class="panel">
+    <h3>素材清单</h3>
+    <div class="asset-table">
+      <div class="asset-row">
+        <div class="mini-icon temp"></div>
+        <div><div class="asset-title">temp-cache.png</div><div class="asset-note">系统临时文件、缓存清理分类</div></div>
+        <div class="size-pill">1024x1024</div>
+      </div>
+      <div class="asset-row">
+        <div class="mini-icon browser"></div>
+        <div><div class="asset-title">browser-cache.png</div><div class="asset-note">浏览器缓存、网页残留分类</div></div>
+        <div class="size-pill">1024x1024</div>
+      </div>
+      <div class="asset-row">
+        <div class="mini-icon app"></div>
+        <div><div class="asset-title">app-cache.png</div><div class="asset-note">应用缓存、软件数据分类</div></div>
+        <div class="size-pill">1024x1024</div>
+      </div>
+      <div class="asset-row">
+        <div class="mini-icon system"></div>
+        <div><div class="asset-title">system-cache.png</div><div class="asset-note">系统缓存、需谨慎项目分类</div></div>
+        <div class="size-pill">1024x1024</div>
+      </div>
+      <div class="asset-row">
+        <div class="mini-icon large"></div>
+        <div><div class="asset-title">large-file.png</div><div class="asset-note">大文件分析、占用空间提示</div></div>
+        <div class="size-pill">1024x1024</div>
+      </div>
+      <div class="asset-row">
+        <div class="mini-icon ai"></div>
+        <div><div class="asset-title">ai-analysis.png</div><div class="asset-note">AI 分析、智能建议状态</div></div>
+        <div class="size-pill">1024x1024</div>
+      </div>
+      <div class="asset-row">
+        <div class="mini-icon scan"></div>
+        <div><div class="asset-title">scan-state.png</div><div class="asset-note">扫描中、空间检测状态</div></div>
+        <div class="size-pill">1312x736</div>
+      </div>
+      <div class="asset-row">
+        <div class="mini-icon safe"></div>
+        <div><div class="asset-title">safe-clean.png</div><div class="asset-note">安全清理、释放空间成功状态</div></div>
+        <div class="size-pill">1312x736</div>
+      </div>
+      <div class="asset-row">
+        <div class="mini-icon caution"></div>
+        <div><div class="asset-title">caution-protect.png</div><div class="asset-note">谨慎删除、保留系统文件提示</div></div>
+        <div class="size-pill">1312x736</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3>视觉规则</h3>
+    <div class="mock-area">
+      <div class="mock-card">
+        <div class="mini-icon temp"></div>
+        <div class="mini-icon browser"></div>
+        <div class="mini-icon large"></div>
+        <div class="mini-icon ai"></div>
+      </div>
+    </div>
+    <div class="checklist">
+      <div>蓝绿为主，少量橙/红/紫只用于语义区分。</div>
+      <div>无文字、无水印，避免生成乱码。</div>
+      <div>白色或浅色干净背景，便于放进 Ant Design 卡片和空状态。</div>
+      <div>文件名稳定，后续如果要接入 UI 可以直接 import。</div>
+    </div>
+    <div class="approve">如果 OK，在聊天里回复“批准”或“继续生成”。</div>
+  </div>
+</div>

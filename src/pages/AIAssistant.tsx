@@ -23,6 +23,7 @@ import {
   PlusOutlined,
   CheckCircleFilled,
 } from '@ant-design/icons';
+import aiAnalysisImg from '../assets/ui-kit/ai-analysis.png';
 
 const { Title, Text } = Typography;
 
@@ -244,7 +245,7 @@ export default function AIAssistant() {
     <div>
       <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
         <Space>
-          <RobotOutlined style={{ fontSize: 24, color: '#1677ff' }} />
+          <img src={aiAnalysisImg} alt="AI 助手" style={{ width: 32, height: 32, borderRadius: 6 }} />
           <Title level={4} style={{ margin: 0 }}>AI 助手设置</Title>
         </Space>
         <Space>

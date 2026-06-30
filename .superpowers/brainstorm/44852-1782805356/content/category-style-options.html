@@ -1,0 +1,243 @@
+<style>
+  .style-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 18px;
+    margin-top: 20px;
+  }
+
+  .style-card {
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    background: #fff;
+    overflow: hidden;
+    cursor: pointer;
+    transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .style-card:hover {
+    transform: translateY(-2px);
+    border-color: #1677ff;
+    box-shadow: 0 14px 32px rgba(22, 119, 255, 0.12);
+  }
+
+  .preview {
+    height: 250px;
+    padding: 18px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .soft {
+    background: linear-gradient(135deg, #eef7ff 0%, #f0fff7 100%);
+  }
+
+  .flat {
+    background: #f8fafc;
+  }
+
+  .dark {
+    background: radial-gradient(circle at 72% 22%, rgba(82, 196, 26, 0.26), transparent 34%),
+      linear-gradient(135deg, #101828 0%, #172554 54%, #042f2e 100%);
+  }
+
+  .icon-tile {
+    border-radius: 14px;
+    position: relative;
+    min-height: 92px;
+    overflow: hidden;
+  }
+
+  .soft .icon-tile {
+    background: rgba(255,255,255,0.78);
+    border: 1px solid rgba(22, 119, 255, 0.11);
+    box-shadow: 0 14px 28px rgba(22, 119, 255, 0.12);
+  }
+
+  .flat .icon-tile {
+    background: #fff;
+    border: 1px solid #d0d5dd;
+  }
+
+  .dark .icon-tile {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.14);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.12);
+  }
+
+  .folder, .browser, .large, .robot {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+  }
+
+  .folder {
+    width: 58px;
+    height: 42px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #1677ff, #52c41a);
+  }
+
+  .folder::before {
+    content: "";
+    position: absolute;
+    width: 28px;
+    height: 12px;
+    left: 6px;
+    top: -8px;
+    border-radius: 8px 8px 0 0;
+    background: inherit;
+  }
+
+  .browser {
+    width: 58px;
+    height: 46px;
+    border-radius: 12px;
+    border: 5px solid #1677ff;
+  }
+
+  .browser::after {
+    content: "";
+    position: absolute;
+    width: 24px;
+    height: 24px;
+    right: -10px;
+    bottom: -10px;
+    border-radius: 50%;
+    background: #52c41a;
+  }
+
+  .large {
+    width: 54px;
+    height: 60px;
+    border-radius: 12px;
+    background: linear-gradient(160deg, #722ed1, #1677ff);
+  }
+
+  .large::after {
+    content: "";
+    position: absolute;
+    left: 10px;
+    right: 10px;
+    bottom: 13px;
+    height: 8px;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.7);
+  }
+
+  .robot {
+    width: 60px;
+    height: 46px;
+    border-radius: 18px;
+    background: linear-gradient(135deg, #13c2c2, #1677ff);
+  }
+
+  .robot::before, .robot::after {
+    content: "";
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    top: 18px;
+    background: white;
+  }
+
+  .robot::before { left: 16px; }
+  .robot::after { right: 16px; }
+
+  .flat .folder,
+  .flat .large,
+  .flat .robot {
+    background: #1677ff;
+    box-shadow: none;
+  }
+
+  .flat .browser {
+    border-color: #1677ff;
+  }
+
+  .flat .browser::after {
+    background: #12b76a;
+  }
+
+  .dark .folder,
+  .dark .large,
+  .dark .robot {
+    filter: saturate(1.15) brightness(1.12);
+    box-shadow: 0 0 26px rgba(82, 196, 26, 0.18);
+  }
+
+  .dark .browser {
+    border-color: #38bdf8;
+  }
+
+  .card-body {
+    padding: 16px;
+  }
+
+  .card-body h3 {
+    margin: 0 0 8px;
+  }
+
+  .card-body p {
+    margin: 0;
+    color: #667085;
+    line-height: 1.6;
+  }
+
+  .pick {
+    margin-top: 12px;
+    color: #344054;
+    font-size: 13px;
+    line-height: 1.7;
+  }
+</style>
+
+<h2>分类与状态素材包：选择一个视觉方向</h2>
+<p class="subtitle">推荐 A，因为它最贴近项目已有的蓝绿、柔和、轻 3D 资产，也能直接和当前 Ant Design 浅色界面相处得很自然。</p>
+
+<div class="style-grid">
+  <div class="style-card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="preview soft">
+      <div class="icon-tile"><div class="folder"></div></div>
+      <div class="icon-tile"><div class="browser"></div></div>
+      <div class="icon-tile"><div class="large"></div></div>
+      <div class="icon-tile"><div class="robot"></div></div>
+    </div>
+    <div class="card-body">
+      <h3>A. 柔和轻 3D 套系</h3>
+      <p>延续现有蓝绿玻璃感和圆润图形，适合替换或补齐项目内分类图、空状态、AI 分析插画。</p>
+      <div class="pick">优点：最统一，完成度高。<br>代价：小尺寸下细节会略多。</div>
+    </div>
+  </div>
+
+  <div class="style-card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="preview flat">
+      <div class="icon-tile"><div class="folder"></div></div>
+      <div class="icon-tile"><div class="browser"></div></div>
+      <div class="icon-tile"><div class="large"></div></div>
+      <div class="icon-tile"><div class="robot"></div></div>
+    </div>
+    <div class="card-body">
+      <h3>B. 扁平语义图标套系</h3>
+      <p>更接近功能型后台图标，形状清楚，颜色克制，用作表格空状态和小卡片会很稳。</p>
+      <div class="pick">优点：扫描性强，小尺寸清楚。<br>代价：不如 A 有产品质感。</div>
+    </div>
+  </div>
+
+  <div class="style-card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="preview dark">
+      <div class="icon-tile"><div class="folder"></div></div>
+      <div class="icon-tile"><div class="browser"></div></div>
+      <div class="icon-tile"><div class="large"></div></div>
+      <div class="icon-tile"><div class="robot"></div></div>
+    </div>
+    <div class="card-body">
+      <h3>C. 深色科技仪表盘套系</h3>
+      <p>更像安全工具或性能分析软件，适合宣传图和独立大屏视觉，不太像当前浅色应用。</p>
+      <div class="pick">优点：冲击力强。<br>代价：和现有界面需要更多适配。</div>
+    </div>
+  </div>
+</div>

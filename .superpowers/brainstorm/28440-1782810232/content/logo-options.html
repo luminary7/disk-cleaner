@@ -1,0 +1,123 @@
+<style>
+  .logo-grid {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 16px;
+    margin-top: 20px;
+  }
+
+  .logo-card {
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    background: #fff;
+    overflow: hidden;
+    cursor: pointer;
+    transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .logo-card:hover {
+    transform: translateY(-2px);
+    border-color: #1677ff;
+    box-shadow: 0 14px 32px rgba(22, 119, 255, 0.12);
+  }
+
+  .logo-stage {
+    aspect-ratio: 1 / 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background:
+      linear-gradient(45deg, #f5f7fb 25%, transparent 25%),
+      linear-gradient(-45deg, #f5f7fb 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #f5f7fb 75%),
+      linear-gradient(-45deg, transparent 75%, #f5f7fb 75%);
+    background-size: 28px 28px;
+    background-position: 0 0, 0 14px, 14px -14px, -14px 0;
+    padding: 18px;
+  }
+
+  .logo-stage img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    filter: drop-shadow(0 14px 18px rgba(15, 23, 42, 0.12));
+  }
+
+  .logo-body {
+    padding: 14px;
+  }
+
+  .logo-body h3 {
+    margin: 0 0 6px;
+    font-size: 16px;
+  }
+
+  .logo-body p {
+    margin: 0;
+    color: #667085;
+    line-height: 1.55;
+    font-size: 13px;
+  }
+
+  .recommend {
+    margin-top: 18px;
+    border-radius: 12px;
+    border: 1px solid #b2ddff;
+    background: #eff8ff;
+    padding: 14px 16px;
+    color: #175cd3;
+  }
+
+  @media (max-width: 1100px) {
+    .logo-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  }
+</style>
+
+<h2>产品 Logo 五个候选版本</h2>
+<p class="subtitle">点击一个版本选择，或直接在聊天里回复 A / B / C / D / E。我现在只展示候选，不会替换产品文件。</p>
+
+<div class="logo-grid">
+  <div class="logo-card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="logo-stage"><img src="/files/logo-a-cd.png" alt="Logo A"></div>
+    <div class="logo-body">
+      <h3>A. 磁盘圆环</h3>
+      <p>最直接表达 C 盘/磁盘空间，稳重、通用，适合桌面应用图标。</p>
+    </div>
+  </div>
+
+  <div class="logo-card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="logo-stage"><img src="/files/logo-b-broom.png" alt="Logo B"></div>
+    <div class="logo-body">
+      <h3>B. 清扫动作</h3>
+      <p>清理含义最强，识别快，风格更偏工具型和轻松。</p>
+    </div>
+  </div>
+
+  <div class="logo-card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="logo-stage"><img src="/files/logo-c-arc.png" alt="Logo C"></div>
+    <div class="logo-body">
+      <h3>C. 环形动势</h3>
+      <p>强调扫描、优化、释放空间，科技感更强，也更抽象。</p>
+    </div>
+  </div>
+
+  <div class="logo-card" data-choice="d" onclick="toggleSelect(this)">
+    <div class="logo-stage"><img src="/files/logo-d-geo.png" alt="Logo D"></div>
+    <div class="logo-body">
+      <h3>D. 几何空间</h3>
+      <p>更像现代品牌符号，简洁高级，但清理含义弱一些。</p>
+    </div>
+  </div>
+
+  <div class="logo-card" data-choice="e" onclick="toggleSelect(this)">
+    <div class="logo-stage"><img src="/files/logo-e-shield.png" alt="Logo E"></div>
+    <div class="logo-body">
+      <h3>E. 安全盾牌</h3>
+      <p>突出安全清理和保护系统，和产品“安全删除”卖点最贴。</p>
+    </div>
+  </div>
+</div>
+
+<div class="recommend">
+  我的推荐：E 最符合“安全清理 C 盘”的产品定位；A 最像标准桌面工具图标；C 最有速度和智能优化感。
+</div>

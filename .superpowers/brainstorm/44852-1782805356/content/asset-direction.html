@@ -1,0 +1,180 @@
+<style>
+  .asset-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 18px;
+    margin-top: 20px;
+  }
+
+  .asset-card {
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    background: #fff;
+    overflow: hidden;
+    cursor: pointer;
+    transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .asset-card:hover {
+    transform: translateY(-2px);
+    border-color: #1677ff;
+    box-shadow: 0 14px 32px rgba(22, 119, 255, 0.12);
+  }
+
+  .asset-preview {
+    height: 210px;
+    background: linear-gradient(135deg, #edf6ff 0%, #effff7 100%);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .asset-preview::before {
+    content: "";
+    position: absolute;
+    inset: 28px;
+    border-radius: 999px;
+    background: radial-gradient(circle, rgba(22, 119, 255, 0.18), rgba(82, 196, 26, 0.14), transparent 68%);
+  }
+
+  .disk {
+    position: absolute;
+    width: 116px;
+    height: 116px;
+    border-radius: 50%;
+    left: calc(50% - 58px);
+    top: 44px;
+    background: conic-gradient(from 20deg, #084a9c, #1677ff, #14c8a8, #52c41a, #084a9c);
+    box-shadow: 0 18px 38px rgba(22, 119, 255, 0.2);
+  }
+
+  .disk::after {
+    content: "";
+    position: absolute;
+    inset: 34px;
+    border-radius: 50%;
+    background: #fff;
+  }
+
+  .hero-lines {
+    position: absolute;
+    width: 190px;
+    height: 82px;
+    left: calc(50% - 95px);
+    top: 92px;
+    border-top: 3px solid rgba(22, 119, 255, 0.45);
+    border-bottom: 3px solid rgba(82, 196, 26, 0.45);
+    border-radius: 50%;
+    transform: rotate(-13deg);
+  }
+
+  .tile {
+    position: absolute;
+    width: 76px;
+    height: 76px;
+    border-radius: 18px;
+    background: linear-gradient(135deg, #1677ff, #52c41a);
+    box-shadow: 0 14px 28px rgba(22, 119, 255, 0.2);
+  }
+
+  .tile.one { left: 40px; top: 38px; }
+  .tile.two { right: 42px; top: 68px; background: linear-gradient(135deg, #13c2c2, #1677ff); }
+  .tile.three { left: calc(50% - 38px); bottom: 28px; background: linear-gradient(135deg, #52c41a, #faad14); }
+
+  .dashboard {
+    position: absolute;
+    left: 34px;
+    right: 34px;
+    top: 36px;
+    bottom: 34px;
+    border-radius: 14px;
+    background: rgba(255,255,255,0.86);
+    border: 1px solid rgba(22, 119, 255, 0.12);
+    box-shadow: 0 20px 42px rgba(15, 23, 42, 0.08);
+    padding: 18px;
+  }
+
+  .dash-row {
+    height: 14px;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    background: linear-gradient(90deg, #1677ff, #52c41a);
+    opacity: 0.75;
+  }
+
+  .dash-row.short { width: 62%; }
+  .dash-row.mid { width: 80%; opacity: 0.42; }
+  .dash-ring {
+    width: 68px;
+    height: 68px;
+    border-radius: 50%;
+    margin-top: 14px;
+    background: conic-gradient(#1677ff 0 58%, #52c41a 58% 83%, #e5e7eb 83%);
+  }
+
+  .asset-body {
+    padding: 16px;
+  }
+
+  .asset-body h3 {
+    margin: 0 0 8px;
+  }
+
+  .asset-body p {
+    color: #667085;
+    line-height: 1.6;
+    margin: 0;
+  }
+
+  .asset-list {
+    margin-top: 12px;
+    color: #344054;
+    font-size: 13px;
+    line-height: 1.8;
+  }
+</style>
+
+<h2>这批 UI 素材优先做哪种包？</h2>
+<p class="subtitle">我看了项目现有资产：图标是 1024x1024，插画是 1312x736，背景是宽幅蓝绿科技感。请选择你更想要的方向。</p>
+
+<div class="asset-grid">
+  <div class="asset-card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="asset-preview">
+      <div class="disk"></div>
+      <div class="hero-lines"></div>
+    </div>
+    <div class="asset-body">
+      <h3>A. 关键视觉替换包</h3>
+      <p>做更统一、更精致的启动页主视觉、清理成功图、空状态图和背景。</p>
+      <div class="asset-list">适合：马上提升第一眼观感<br>数量：约 4 张</div>
+    </div>
+  </div>
+
+  <div class="asset-card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="asset-preview">
+      <div class="tile one"></div>
+      <div class="tile two"></div>
+      <div class="tile three"></div>
+    </div>
+    <div class="asset-body">
+      <h3>B. 分类与状态素材包</h3>
+      <p>补齐临时文件、浏览器缓存、系统文件、大文件、AI 分析等功能图。</p>
+      <div class="asset-list">适合：覆盖整个项目页面<br>数量：约 8-10 张</div>
+    </div>
+  </div>
+
+  <div class="asset-card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="asset-preview">
+      <div class="dashboard">
+        <div class="dash-row short"></div>
+        <div class="dash-row mid"></div>
+        <div class="dash-row"></div>
+        <div class="dash-ring"></div>
+      </div>
+    </div>
+    <div class="asset-body">
+      <h3>C. 应用宣传与商店素材包</h3>
+      <p>生成应用封面、功能展示横幅、安装页/README 视觉和桌面图标方向。</p>
+      <div class="asset-list">适合：打包发布和展示<br>数量：约 5-6 张</div>
+    </div>
+  </div>
+</div>

@@ -2,7 +2,11 @@
   "permissions": {
     "allow": [
       "Read(//c/Users/7号/.claude/skills/brainstorming/**)",
-      "Read(//c/Users/7号/.agents/skills/brainstorming/**)"
+      "Read(//c/Users/7号/.agents/skills/brainstorming/**)",
+      "Bash(ls ~/.u2net/ 2>/dev/null || echo \"NOT_FOUND\")",
+      "Read(//c/Users/7号/.u2net/**)",
+      "Bash(ls ~/.venv/rembg/bin/python 2>/dev/null && echo \"VENV_OK\" || echo \"VENV_NOT_FOUND\")",
+      "Read(//c/Users/7号/.venv/rembg/bin/**)"
     ]
   }
 }

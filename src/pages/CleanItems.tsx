@@ -13,6 +13,12 @@ import {
 } from 'antd';
 import { ScanOutlined, DeleteOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
+import safeCleanImg from '../assets/ui-kit/safe-clean.png';
+import tempCacheImg from '../assets/ui-kit/temp-cache.png';
+import browserCacheImg from '../assets/ui-kit/browser-cache.png';
+import appCacheImg from '../assets/ui-kit/app-cache.png';
+import systemCacheImg from '../assets/ui-kit/system-cache.png';
+import largeFileImg from '../assets/ui-kit/large-file.png';
 
 const { Title, Text } = Typography;
 
@@ -22,6 +28,14 @@ const CATEGORY_LABELS: Record<string, string> = {
   app: '应用缓存',
   system: '系统缓存',
   'large-file': '大文件',
+};
+
+const CATEGORY_IMAGES: Record<string, string> = {
+  temp: tempCacheImg,
+  browser: browserCacheImg,
+  app: appCacheImg,
+  system: systemCacheImg,
+  'large-file': largeFileImg,
 };
 
 function formatSize(bytes: number): string {
@@ -147,7 +161,16 @@ export default function CleanItems() {
       title: '类别',
       dataIndex: 'category',
       key: 'category',
-      render: (v: string) => CATEGORY_LABELS[v] || v,
+      render: (v: string) => (
+        <Space size={4}>
+          <img
+            src={CATEGORY_IMAGES[v]}
+            alt={CATEGORY_LABELS[v] || v}
+            style={{ width: 20, height: 20, borderRadius: 3, verticalAlign: 'middle' }}
+          />
+          {CATEGORY_LABELS[v] || v}
+        </Space>
+      ),
     },
     {
       title: '安全等级',
@@ -169,6 +192,7 @@ export default function CleanItems() {
     <div>
       <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
         <Space>
+          <img src={safeCleanImg} alt="逐项清理" style={{ width: 32, height: 32, borderRadius: 6 }} />
           <Title level={4} style={{ margin: 0 }}>逐项清理</Title>
           {loading && (
             <Text type="secondary" style={{ fontSize: 13 }}>

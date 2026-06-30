@@ -2,6 +2,12 @@ import { useEffect, useState } from 'react';
 import { Card, Col, Row, Table, Typography, Button, Spin } from 'antd';
 import ReactEChartsCore from 'echarts-for-react';
 import { ScanOutlined } from '@ant-design/icons';
+import tempCacheImg from '../assets/ui-kit/temp-cache.png';
+import browserCacheImg from '../assets/ui-kit/browser-cache.png';
+import appCacheImg from '../assets/ui-kit/app-cache.png';
+import systemCacheImg from '../assets/ui-kit/system-cache.png';
+import largeFileImg from '../assets/ui-kit/large-file.png';
+import safeCleanImg from '../assets/ui-kit/safe-clean.png';
 
 const { Title } = Typography;
 
@@ -27,6 +33,14 @@ const CATEGORY_COLORS: Record<string, string> = {
   app: '#faad14',
   system: '#ff4d4f',
   'large-file': '#722ed1',
+};
+
+const CATEGORY_IMAGES: Record<string, string> = {
+  temp: tempCacheImg,
+  browser: browserCacheImg,
+  app: appCacheImg,
+  system: systemCacheImg,
+  'large-file': largeFileImg,
 };
 
 function formatSize(bytes: number): string {
@@ -159,20 +173,36 @@ export default function SpaceOverview() {
         <>
           <Row gutter={16}>
             <Col span={8}>
-              <Card title="总览">
-                <Title level={2} style={{ color: '#1677ff', margin: 0 }}>
-                  {formatSize(totalSize)}
-                </Title>
-                <div style={{ color: '#999', marginTop: 8 }}>可清理空间</div>
+              <Card
+                title="总览"
+                styles={{ body: { display: 'flex', alignItems: 'center', gap: 16 } }}
+              >
+                <img src={safeCleanImg} alt="总览" style={{ width: 56, height: 56, borderRadius: 8 }} />
+                <div>
+                  <Title level={2} style={{ color: '#1677ff', margin: 0 }}>
+                    {formatSize(totalSize)}
+                  </Title>
+                  <div style={{ color: '#999', marginTop: 4 }}>可清理空间</div>
+                </div>
               </Card>
             </Col>
             {categories.slice(0, 2).map((cat) => (
               <Col span={8} key={cat.category}>
-                <Card title={cat.label}>
-                  <Title level={4} style={{ margin: 0 }}>
-                    {formatSize(cat.size)}
-                  </Title>
-                  <div style={{ color: '#999', marginTop: 8 }}>{cat.count} 个项目</div>
+                <Card
+                  title={cat.label}
+                  styles={{ body: { display: 'flex', alignItems: 'center', gap: 16 } }}
+                >
+                  <img
+                    src={CATEGORY_IMAGES[cat.category]}
+                    alt={cat.label}
+                    style={{ width: 56, height: 56, borderRadius: 8 }}
+                  />
+                  <div>
+                    <Title level={4} style={{ margin: 0 }}>
+                      {formatSize(cat.size)}
+                    </Title>
+                    <div style={{ color: '#999', marginTop: 4 }}>{cat.count} 个项目</div>
+                  </div>
                 </Card>
               </Col>
             ))}
@@ -189,7 +219,12 @@ export default function SpaceOverview() {
                 {categories.map((cat) => (
                   <Row key={cat.category} align="middle" style={{ marginBottom: 12 }}>
                     <Col span={8}>
-                      <span style={{ color: cat.color }}>●</span> {cat.label}
+                      <img
+                        src={CATEGORY_IMAGES[cat.category]}
+                        alt={cat.label}
+                        style={{ width: 40, height: 40, borderRadius: 6, marginRight: 10, verticalAlign: 'middle' }}
+                      />
+                      {cat.label}
                     </Col>
                     <Col span={8}>{formatSize(cat.size)}</Col>
                     <Col span={4}>{cat.count} 项</Col>
