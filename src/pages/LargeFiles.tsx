@@ -64,7 +64,12 @@ const FILE_TYPE_OPTIONS = [
   ...FILE_CATEGORIES.map(c => ({ value: c.label, label: c.label })),
 ];
 
-// 判断是否为重要文件（数据库/系统文件等）
+function cleanAIError(err: any): string {
+  const msg = err?.message || '';
+  // IPC invoke 包装格式: "Error invoking remote method 'xxx': Error: 真实消息"
+  const idx = msg.lastIndexOf('Error: ');
+  return idx >= 0 ? msg.slice(idx + 7) : msg || '请检查 AI 配置';
+}
 function isImportantFile(item: ScanItem): boolean {
   if (item.safety !== 'safe') return true;
   const ext = item.name.split('.').pop()?.toLowerCase() || '';
@@ -237,7 +242,7 @@ export default function LargeFiles() {
       // 分析完成后自动弹出建议详情
       setViewingFileId(item.id);
     } catch (err: any) {
-      message.error(`分析失败: ${err?.message || '请检查 AI 配置'}`);
+      message.error(`分析失败: ${cleanAIError(err)}`);
     } finally {
       setAnalyzingFileId(null);
     }
