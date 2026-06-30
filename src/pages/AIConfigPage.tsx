@@ -11,14 +11,20 @@ import {
   Alert,
   Form,
 } from 'antd';
-import { ArrowLeftOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, CheckCircleOutlined, LinkOutlined } from '@ant-design/icons';
 
 const { Title, Text } = Typography;
 
-const PRESET_PROVIDERS = {
+const PRESET_PROVIDERS: Record<string, { endpoint: string; model: string; site?: string; docs?: string }> = {
   deepseek: { endpoint: 'https://api.deepseek.com', model: 'deepseek-chat' },
   minimax: { endpoint: 'https://api.minimax.chat/v1', model: 'minimax-text-01' },
   siliconflow: { endpoint: 'https://api.siliconflow.cn/v1', model: 'Qwen/Qwen2.5-7B-Instruct' },
+  agens: {
+    endpoint: 'https://apihub.agnes-ai.com/v1/',
+    model: 'agnes-2.0-flash',
+    site: 'https://agnes-ai.com/',
+    docs: 'https://agnes-ai.com/zh-Hans/docs/agnes-20-flash',
+  },
 };
 
 interface Props {
@@ -27,7 +33,7 @@ interface Props {
 
 export default function AIConfigPage({ onBack }: Props) {
   const [mode, setMode] = useState<'disabled' | 'preset' | 'custom'>('disabled');
-  const [provider, setProvider] = useState<'deepseek' | 'minimax' | 'siliconflow'>('deepseek');
+  const [provider, setProvider] = useState<'deepseek' | 'minimax' | 'siliconflow' | 'agens'>('deepseek');
   const [apiKey, setApiKey] = useState('');
   const [customEndpoint, setCustomEndpoint] = useState('');
   const [customModel, setCustomModel] = useState('');
@@ -137,8 +143,19 @@ export default function AIConfigPage({ onBack }: Props) {
                       <Radio value="deepseek">DeepSeek</Radio>
                       <Radio value="minimax">MiniMax</Radio>
                       <Radio value="siliconflow">硅基流动</Radio>
+                      <Radio value="agens">Agnes AI（免费）</Radio>
                     </Radio.Group>
                   </Form.Item>
+                  {provider === 'agens' && (
+                    <div style={{ marginBottom: 16, display: 'flex', gap: 16, fontSize: 13 }}>
+                      <a href={PRESET_PROVIDERS.agens.site} target="_blank" rel="noopener noreferrer">
+                        <LinkOutlined /> 官网
+                      </a>
+                      <a href={PRESET_PROVIDERS.agens.docs} target="_blank" rel="noopener noreferrer">
+                        <LinkOutlined /> API 文档
+                      </a>
+                    </div>
+                  )}
                   <Form.Item label="API Endpoint">
                     <Input value={PRESET_PROVIDERS[provider].endpoint} disabled />
                   </Form.Item>

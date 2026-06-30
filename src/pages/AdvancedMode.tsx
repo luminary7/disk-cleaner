@@ -6,6 +6,7 @@ import {
   FileSearchOutlined,
   RobotOutlined,
   ArrowLeftOutlined,
+  AuditOutlined,
 } from '@ant-design/icons';
 import SpaceOverview from './SpaceOverview';
 import CleanItems from './CleanItems';
@@ -13,10 +14,11 @@ import LargeFiles from './LargeFiles';
 import AIAssistant from './AIAssistant';
 import AIConfigPage from './AIConfigPage';
 import SettingsPage from './SettingsPage';
+import ScanRules from './ScanRules';
 
 const { Sider, Content } = Layout;
 
-type TabKey = 'overview' | 'clean-items' | 'large-files' | 'ai-chat' | 'ai-config' | 'settings';
+type TabKey = 'overview' | 'clean-items' | 'large-files' | 'ai-chat' | 'ai-config' | 'settings' | 'scan-rules';
 
 interface Props {
   onSwitchToSimple: () => void;
@@ -26,6 +28,7 @@ const menuItems = [
   { key: 'overview', icon: <PieChartOutlined />, label: '空间概览' },
   { key: 'clean-items', icon: <FormatPainterOutlined />, label: '逐项清理' },
   { key: 'large-files', icon: <FileSearchOutlined />, label: '大文件分析' },
+  { key: 'scan-rules', icon: <AuditOutlined />, label: '扫描规则' },
   { key: 'ai-chat', icon: <RobotOutlined />, label: 'AI 助手' },
 ];
 
@@ -39,6 +42,7 @@ export default function AdvancedMode({ onSwitchToSimple }: Props) {
       overview: <SpaceOverview />,
       'clean-items': <CleanItems />,
       'large-files': <LargeFiles />,
+      'scan-rules': <ScanRules />,
       'ai-chat': <AIAssistant />,
     };
     return (

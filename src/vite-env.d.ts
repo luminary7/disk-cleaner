@@ -37,7 +37,7 @@ declare global {
 
   interface AIConfig {
     mode: 'disabled' | 'preset' | 'custom';
-    provider?: 'deepseek' | 'minimax' | 'siliconflow';
+    provider?: 'deepseek' | 'minimax' | 'siliconflow' | 'agens';
     endpoint?: string;
     apiKey?: string;
     model?: string;
@@ -93,8 +93,7 @@ declare global {
     getAIConfig: () => Promise<AIConfig>;
     analyzeFiles: (files: ScanItem[]) => Promise<{ analysis: Array<{ name: string; type: string; purpose: string; suggestDelete: boolean; reason: string }> } | null>;
     analyzeSingleFile: (item: ScanItem) => Promise<SingleFileAnalysis>;
-    analyzeBatchFiles: (items: ScanItem[]) => Promise<{ cancelled: boolean; results: Array<{ fileId: string; analysis: SingleFileAnalysis | null; error?: string }> }>;
-    cancelBatchAnalysis: () => Promise<{ cancelled: boolean }>;
+    analyzeLargeFiles: (items: ScanItem[]) => Promise<{ results: Array<{ path: string; safety: 'safe' | 'caution' | 'keep'; reason: string }> }>;
     onBatchAnalysisProgress: (callback: (data: { current: number; total: number; currentItem: string }) => void) => void;
     saveAIPreset: (preset: AIConfig & { name: string }) => Promise<void>;
     getAIPresets: () => Promise<(AIConfig & { name: string })[]>;

@@ -201,49 +201,25 @@ function registerIPC() {
   });
 
   // ========= AI =========
-  let batchCancelRequested = false;
 
-  // 批量文件分析（3 并发，可取消）
-  ipcMain.handle('ai:analyze-batch', async (_event, items) => {
-    batchCancelRequested = false;
-    const total = items.length;
-    const results = new Array(total);
-    let completed = 0;
-    let nextIdx = 0;
+  // 批量分析大文件 — 一次性发送所有文件给 AI，不分条调用
+  ipcMain.handle('ai:analyze-large-files', async (_event, items) => {
+    const BATCH_SIZE = 100;
+    const allResults = [];
 
-    async function worker() {
-      while (!batchCancelRequested) {
-        const idx = nextIdx++;
-        if (idx >= total) break;
-        const item = items[idx];
-        try {
-          const detail = await getFileDetail(item.path, item);
-          const analysis = await aiProvider.analyzeSingleFile(detail);
-          results[idx] = { fileId: item.id, analysis };
-        } catch (err) {
-          results[idx] = { fileId: item.id, analysis: null, error: err.message };
-        }
-        completed++;
-        mainWindow?.webContents.send('ai:batch-progress', {
-          current: completed, total,
-          currentItem: item.name || '',
-        });
-      }
+    for (let i = 0; i < items.length; i += BATCH_SIZE) {
+      const batch = items.slice(i, i + BATCH_SIZE);
+      const results = await aiProvider.analyzeLargeFiles(batch);
+      allResults.push(...results);
+
+      mainWindow?.webContents.send('ai:batch-progress', {
+        current: Math.min(i + BATCH_SIZE, items.length),
+        total: items.length,
+        currentItem: `第 ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(items.length / BATCH_SIZE)} 批`,
+      });
     }
 
-    const poolSize = Math.min(3, total);
-    const workers = Array.from({ length: poolSize }, () => worker());
-    await Promise.all(workers);
-
-    if (batchCancelRequested) {
-      return { cancelled: true, results: results.filter(Boolean) };
-    }
-    return { cancelled: false, results: results.filter(Boolean) };
-  });
-
-  ipcMain.handle('ai:batch-cancel', async () => {
-    batchCancelRequested = true;
-    return { cancelled: true };
+    return { results: allResults };
   });
 
   ipcMain.handle('ai:test-connection', async (_event, config) => {

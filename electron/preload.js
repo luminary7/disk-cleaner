@@ -52,8 +52,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getAIConfig: () => ipcRenderer.invoke('ai:get-config'),
   analyzeFiles: (files) => ipcRenderer.invoke('ai:analyze-files', files),
   analyzeSingleFile: (item) => ipcRenderer.invoke('ai:analyze-single-file', item),
-  analyzeBatchFiles: (items) => ipcRenderer.invoke('ai:analyze-batch', items),
-  cancelBatchAnalysis: () => ipcRenderer.invoke('ai:batch-cancel'),
+  analyzeLargeFiles: (items) => ipcRenderer.invoke('ai:analyze-large-files', items),
   onBatchAnalysisProgress: (callback) => {
     ipcRenderer.on('ai:batch-progress', (_event, data) => callback(data));
   },

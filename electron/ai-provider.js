@@ -9,6 +9,7 @@ const PRESET_PROVIDERS = {
   deepseek: { endpoint: 'https://api.deepseek.com', model: 'deepseek-v4-flash' },
   minimax: { endpoint: 'https://api.minimax.chat/v1', model: 'Minimax-M3' },
   siliconflow: { endpoint: 'https://api.siliconflow.cn/v1', model: 'Qwen/Qwen2.5-7B-Instruct' },
+  agens: { endpoint: 'https://apihub.agnes-ai.com/v1/', model: 'agnes-2.0-flash' },
 };
 
 class AIProvider {
@@ -219,6 +220,72 @@ class AIProvider {
       }
     }
     throw new Error('AI 响应中未找到有效的 JSON，请重试');
+  }
+
+  /**
+   * 批量分析大文件 — 一次性发送所有文件给 AI，返回每条的安全裁定
+   * @param {Array<{name: string, path: string, size: number, safety: string}>} files
+   * @returns {Promise<Array<{path: string, safety: string, reason: string}>>}
+   */
+  async analyzeLargeFiles(files) {
+    if (!this.isConfigured()) {
+      throw new Error('AI 未配置，请先在设置中配置 API Key');
+    }
+
+    // 构建文件列表文本
+    const fileList = files.map((f, i) => {
+      const ext = f.name.split('.').pop() || '(无后缀)';
+      const sizeMB = (f.size / 1048576).toFixed(1);
+      const levelText = f.safety === 'safe' ? '可安全删除' : f.safety === 'caution' ? '谨慎删除' : '建议保留';
+      return `${i + 1}. [${ext}] ${f.path} | ${sizeMB}MB | 系统评级: ${levelText}`;
+    }).join('\n');
+
+    const systemPrompt = `你是一个 Windows 磁盘清理专家。用户提供了一批大文件信息，请逐条判断是否可以安全删除。
+
+请从以下维度评估每个文件：
+1. **文件类型与用途** — 根据扩展名、路径、文件名推测
+2. **安全风险** — 是否为系统组件、正在被使用、删除后是否影响程序运行
+3. **清理建议** — 明确给出 safe（可删）/ caution（谨慎）/ keep（建议保留）
+
+回复严格按以下 JSON 格式（不要包含其他内容）：
+{
+  "results": [
+    {"path": "完整路径", "safety": "safe/caution/keep", "reason": "判断理由"}
+  ]
+}`;
+
+    const response = await this._request('/chat/completions', {
+      model: this.model,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: `请分析以下 ${files.length} 个文件：\n\n${fileList}` },
+      ],
+      max_tokens: Math.min(files.length * 150, 16000),
+      temperature: 0.3,
+    });
+
+    const content = response.choices?.[0]?.message?.content || null;
+    if (!content) {
+      throw new Error('AI 返回内容为空，请检查 API 配置或重试');
+    }
+
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error('AI 响应中未找到有效的 JSON，请重试');
+    }
+
+    try {
+      const parsed = JSON.parse(jsonMatch[0]);
+      if (!parsed.results || !Array.isArray(parsed.results)) {
+        throw new Error('AI 返回格式异常：缺少 results 数组');
+      }
+      return parsed.results;
+    } catch (err) {
+      if (err instanceof SyntaxError) {
+        throw new Error('AI 返回的 JSON 格式无法解析，请重试');
+      }
+      throw err;
+    }
   }
 
   /**

@@ -61,6 +61,26 @@ const SCAN_TARGETS = [
     category: 'system', name: 'Windows 临时文件',
     paths: () => [path.join(process.env.windir || 'C:\\Windows', 'Temp')],
   },
+  {
+    category: 'system', name: 'Windows 预读取缓存',
+    paths: () => [path.join(process.env.windir || 'C:\\Windows', 'Prefetch')],
+  },
+  {
+    category: 'system', name: 'Windows 更新缓存',
+    paths: () => [path.join(process.env.windir || 'C:\\Windows', 'SoftwareDistribution', 'Download')],
+  },
+  {
+    category: 'system', name: 'Windows 日志文件',
+    paths: () => [path.join(process.env.windir || 'C:\\Windows', 'Logs')],
+  },
+  {
+    category: 'system', name: '缩略图缓存',
+    paths: () => [path.join(os.homedir(), 'AppData', 'Local', 'Microsoft', 'Windows', 'Explorer')],
+  },
+  {
+    category: 'system', name: 'Windows 错误报告',
+    paths: () => [path.join(process.env.ALLUSERSPROFILE || 'C:\\ProgramData', 'Microsoft', 'Windows', 'WER')],
+  },
 ];
 
 /**
