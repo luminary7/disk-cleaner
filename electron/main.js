@@ -133,6 +133,39 @@ function registerIPC() {
     return await aiProvider.chat(messages);
   });
 
+  ipcMain.handle('ai:analyze-files', async (_event, files) => {
+    return await aiProvider.analyzeFiles(files);
+  });
+
+  // ========= AI 配置预设 =========
+  ipcMain.handle('ai:save-preset', async (_event, preset) => {
+    const presets = store.get('aiPresets', []);
+    const idx = presets.findIndex((p) => p.name === preset.name);
+    if (idx >= 0) {
+      presets[idx] = preset;
+    } else {
+      presets.push(preset);
+    }
+    store.set('aiPresets', presets);
+  });
+
+  ipcMain.handle('ai:get-presets', async () => {
+    return store.get('aiPresets', []);
+  });
+
+  ipcMain.handle('ai:delete-preset', async (_event, name) => {
+    const presets = store.get('aiPresets', []);
+    store.set('aiPresets', presets.filter((p) => p.name !== name));
+  });
+
+  ipcMain.handle('ai:save-active-preset', async (_event, name) => {
+    store.set('aiActivePreset', name);
+  });
+
+  ipcMain.handle('ai:get-active-preset', async () => {
+    return store.get('aiActivePreset', '');
+  });
+
   ipcMain.handle('ai:save-config', async (_event, config) => {
     aiProvider.updateConfig(config);
     store.set('aiConfig', config);

@@ -66,6 +66,12 @@ interface ElectronAPI {
   sendAIMessage: (messages: { role: string; content: string }[]) => Promise<string>;
   saveAIConfig: (config: AIConfig) => Promise<void>;
   getAIConfig: () => Promise<AIConfig>;
+  analyzeFiles: (files: ScanItem[]) => Promise<{ analysis: Array<{ name: string; type: string; purpose: string; suggestDelete: boolean; reason: string }> } | null>;
+  saveAIPreset: (preset: AIConfig & { name: string }) => Promise<void>;
+  getAIPresets: () => Promise<(AIConfig & { name: string })[]>;
+  deleteAIPreset: (name: string) => Promise<void>;
+  saveActivePreset: (name: string) => Promise<void>;
+  getActivePreset: () => Promise<string>;
 
   getLogs: () => Promise<string[]>;
   openLogFolder: () => Promise<void>;

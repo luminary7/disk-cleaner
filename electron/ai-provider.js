@@ -6,8 +6,8 @@ const https = require('https');
 const http = require('http');
 
 const PRESET_PROVIDERS = {
-  deepseek: { endpoint: 'https://api.deepseek.com', model: 'deepseek-chat' },
-  minimax: { endpoint: 'https://api.minimax.chat/v1', model: 'minimax-text-01' },
+  deepseek: { endpoint: 'https://api.deepseek.com', model: 'deepseek-v4-flash' },
+  minimax: { endpoint: 'https://api.minimax.chat/v1', model: 'Minimax-M3' },
   siliconflow: { endpoint: 'https://api.siliconflow.cn/v1', model: 'Qwen/Qwen2.5-7B-Instruct' },
 };
 
@@ -78,6 +78,56 @@ class AIProvider {
       });
       return response.choices?.[0]?.message?.content || null;
     } catch {
+      return null;
+    }
+  }
+
+  /**
+   * 分析大文件列表，判断每个文件是否建议删除
+   */
+  async analyzeFiles(files) {
+    if (!this.isConfigured()) return null;
+
+    const fileList = files
+      .slice(0, 100)
+      .map((f) => `- ${f.name} | 路径: ${f.path} | 大小: ${(f.size / 1048576).toFixed(1)}MB`)
+      .join('\n');
+
+    const systemPrompt = `你是一个 Windows C 盘清理助手。以下是用户 C 盘中的大文件列表，请逐一分析每个文件是什么类型的文件、可能的用途，并判断是否建议删除。请按以下 JSON 格式回复（不要包含其他内容）：
+
+{
+  "analysis": [
+    {
+      "name": "文件名",
+      "type": "文件类型描述",
+      "purpose": "可能的用途",
+      "suggestDelete": true/false,
+      "reason": "建议删除/保留的原因"
+    }
+  ]
+}`;
+
+    try {
+      const response = await this._request('/chat/completions', {
+        model: this.model,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: `请分析以下大文件：\n${fileList}` },
+        ],
+        max_tokens: 4000,
+        temperature: 0.3,
+      });
+      const content = response.choices?.[0]?.message?.content || null;
+      if (!content) return null;
+
+      // 尝试从内容中提取 JSON
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        return JSON.parse(jsonMatch[0]);
+      }
+      return null;
+    } catch (err) {
+      console.error('AI 分析文件失败:', err.message);
       return null;
     }
   }

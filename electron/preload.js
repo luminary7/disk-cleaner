@@ -39,6 +39,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   sendAIMessage: (messages) => ipcRenderer.invoke('ai:chat', messages),
   saveAIConfig: (config) => ipcRenderer.invoke('ai:save-config', config),
   getAIConfig: () => ipcRenderer.invoke('ai:get-config'),
+  analyzeFiles: (files) => ipcRenderer.invoke('ai:analyze-files', files),
+  saveAIPreset: (preset) => ipcRenderer.invoke('ai:save-preset', preset),
+  getAIPresets: () => ipcRenderer.invoke('ai:get-presets'),
+  deleteAIPreset: (name) => ipcRenderer.invoke('ai:delete-preset', name),
+  saveActivePreset: (name) => ipcRenderer.invoke('ai:save-active-preset', name),
+  getActivePreset: () => ipcRenderer.invoke('ai:get-active-preset'),
 
   // 日志相关
   getLogs: () => ipcRenderer.invoke('log:get'),

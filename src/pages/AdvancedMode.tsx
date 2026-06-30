@@ -34,22 +34,25 @@ export default function AdvancedMode({ onSwitchToSimple }: Props) {
   const [siderCollapsed, setSiderCollapsed] = useState(false);
 
   const renderContent = () => {
-    switch (activeTab) {
-      case 'overview':
-        return <SpaceOverview />;
-      case 'clean-items':
-        return <CleanItems />;
-      case 'large-files':
-        return <LargeFiles />;
-      case 'ai-chat':
-        return <AIAssistant />;
-      case 'ai-config':
-        return <AIConfigPage onBack={() => setActiveTab('overview')} />;
-      case 'settings':
-        return <SettingsPage onBack={() => setActiveTab('overview')} />;
-      default:
-        return <SpaceOverview />;
-    }
+    // 同时渲染所有标签页，用 display:none 控制显隐以保留状态
+    const tabs = {
+      overview: <SpaceOverview />,
+      'clean-items': <CleanItems />,
+      'large-files': <LargeFiles />,
+      'ai-chat': <AIAssistant />,
+    };
+    return (
+      <>
+        {Object.entries(tabs).map(([key, el]) => (
+          <div key={key} style={{ display: key === activeTab ? '' : 'none', height: '100%' }}>
+            {el}
+          </div>
+        ))}
+        {/* ai-config 和 settings 仍然通过条件渲染，因为它们不需要保留状态 */}
+        {activeTab === 'ai-config' && <AIConfigPage onBack={() => setActiveTab('overview')} />}
+        {activeTab === 'settings' && <SettingsPage onBack={() => setActiveTab('overview')} />}
+      </>
+    );
   };
 
   return (

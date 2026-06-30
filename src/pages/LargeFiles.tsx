@@ -10,11 +10,20 @@ import {
   Modal,
   Tag,
   Row,
+  Drawer,
+  Tooltip,
 } from 'antd';
-import { FileSearchOutlined, DeleteOutlined, FolderOpenOutlined } from '@ant-design/icons';
+import {
+  FileSearchOutlined,
+  DeleteOutlined,
+  FolderOpenOutlined,
+  RobotOutlined,
+  CheckCircleOutlined,
+  WarningOutlined,
+} from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 
-const { Title } = Typography;
+const { Title, Text } = Typography;
 
 function formatSize(bytes: number): string {
   if (bytes >= 1073741824) return (bytes / 1073741824).toFixed(2) + ' GB';
@@ -41,12 +50,24 @@ function guessFileType(name: string): string {
   return 'other';
 }
 
+interface FileAnalysis {
+  name: string;
+  type: string;
+  purpose: string;
+  suggestDelete: boolean;
+  reason: string;
+}
+
 export default function LargeFiles() {
   const [files, setFiles] = useState<ScanItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [typeFilter, setTypeFilter] = useState('all');
-  const [sortOrder, setSortOrder] = useState<'descend' | 'ascend'>('descend');
+
+  // AI 分析相关状态
+  const [analyzing, setAnalyzing] = useState(false);
+  const [analysisMap, setAnalysisMap] = useState<Map<string, FileAnalysis>>(new Map());
+  const [drawerVisible, setDrawerVisible] = useState(false);
 
   const handleScan = async () => {
     if (!window.electronAPI) return;
@@ -54,6 +75,7 @@ export default function LargeFiles() {
     try {
       const result = await window.electronAPI.startLargeFileScan();
       setFiles(result);
+      setAnalysisMap(new Map()); // 新扫描后清空之前的分析结果
       message.success(`找到 ${result.length} 个大文件`);
     } finally {
       setLoading(false);
@@ -100,6 +122,36 @@ export default function LargeFiles() {
     });
   };
 
+  // AI 分析
+  const handleAIAnalysis = async () => {
+    if (!window.electronAPI) return;
+    if (files.length === 0) {
+      message.warning('请先扫描大文件');
+      return;
+    }
+    setAnalyzing(true);
+    try {
+      const result = await window.electronAPI.analyzeFiles(files);
+      if (result && result.analysis) {
+        const map = new Map<string, FileAnalysis>();
+        result.analysis.forEach((a) => map.set(a.name.toLowerCase(), a));
+        setAnalysisMap(map);
+        setDrawerVisible(true);
+        message.success(`AI 分析完成，共分析 ${result.analysis.length} 个文件`);
+      } else {
+        message.error('AI 分析返回结果异常');
+      }
+    } catch {
+      message.error('AI 分析失败，请检查 AI 配置');
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  const getAnalysis = (name: string): FileAnalysis | undefined => {
+    return analysisMap.get(name.toLowerCase());
+  };
+
   const filteredFiles = files
     .filter((f) => typeFilter === 'all' || guessFileType(f.name) === typeFilter);
 
@@ -124,6 +176,24 @@ export default function LargeFiles() {
       sorter: (a, b) => a.size - b.size,
       defaultSortOrder: 'descend',
     },
+    {
+      title: 'AI 建议',
+      key: 'ai-suggestion',
+      width: 90,
+      render: (_: unknown, record: ScanItem) => {
+        const analysis = getAnalysis(record.name);
+        if (!analysis) return null;
+        return analysis.suggestDelete ? (
+          <Tooltip title={analysis.reason}>
+            <Tag color="error" icon={<WarningOutlined />}>建议删除</Tag>
+          </Tooltip>
+        ) : (
+          <Tooltip title={analysis.reason}>
+            <Tag color="success" icon={<CheckCircleOutlined />}>建议保留</Tag>
+          </Tooltip>
+        );
+      },
+    },
     { title: '修改时间', dataIndex: 'description', key: 'modified' },
     {
       title: '操作',
@@ -141,6 +211,28 @@ export default function LargeFiles() {
     },
   ];
 
+  // 分析结果抽屉的列定义
+  const analysisColumns: ColumnsType<FileAnalysis> = [
+    { title: '文件名', dataIndex: 'name', key: 'name', ellipsis: true },
+    { title: '文件类型', dataIndex: 'type', key: 'type', ellipsis: true },
+    { title: '用途', dataIndex: 'purpose', key: 'purpose', ellipsis: true },
+    {
+      title: '建议操作',
+      dataIndex: 'suggestDelete',
+      key: 'suggestDelete',
+      width: 100,
+      render: (v: boolean) =>
+        v ? (
+          <Tag color="error" icon={<WarningOutlined />}>建议删除</Tag>
+        ) : (
+          <Tag color="success" icon={<CheckCircleOutlined />}>建议保留</Tag>
+        ),
+    },
+    { title: '原因', dataIndex: 'reason', key: 'reason', ellipsis: true },
+  ];
+
+  const analysisList = Array.from(analysisMap.values());
+
   return (
     <div>
       <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
@@ -153,14 +245,29 @@ export default function LargeFiles() {
             style={{ width: 120 }}
           />
           {files.length > 0 && (
-            <Button
-              danger
-              icon={<DeleteOutlined />}
-              onClick={handleDelete}
-              disabled={selectedIds.size === 0}
-            >
-              删除选中 ({selectedIds.size})
-            </Button>
+            <>
+              <Button
+                icon={<RobotOutlined />}
+                onClick={handleAIAnalysis}
+                loading={analyzing}
+                disabled={analysisMap.size > 0}
+              >
+                AI 分析
+              </Button>
+              {analysisMap.size > 0 && (
+                <Button onClick={() => setDrawerVisible(true)}>
+                  查看 AI 分析
+                </Button>
+              )}
+              <Button
+                danger
+                icon={<DeleteOutlined />}
+                onClick={handleDelete}
+                disabled={selectedIds.size === 0}
+              >
+                删除选中 ({selectedIds.size})
+              </Button>
+            </>
           )}
           <Button
             type="primary"
@@ -199,6 +306,34 @@ export default function LargeFiles() {
           </Typography.Text>
         </Card>
       )}
+
+      {/* AI 分析结果抽屉 */}
+      <Drawer
+        title="AI 文件分析结果"
+        placement="right"
+        width={700}
+        open={drawerVisible}
+        onClose={() => setDrawerVisible(false)}
+      >
+        {analysisList.length === 0 ? (
+          <Text type="secondary">暂无分析结果</Text>
+        ) : (
+          <>
+            <Text style={{ marginBottom: 16, display: 'block' }}>
+              AI 共分析了 <strong>{analysisList.length}</strong> 个文件，其中
+              <Text type="danger"> <strong>{analysisList.filter((a) => a.suggestDelete).length}</strong> 个建议删除</Text>，
+              <Text type="success"> <strong>{analysisList.filter((a) => !a.suggestDelete).length}</strong> 个建议保留</Text>。
+            </Text>
+            <Table
+              dataSource={analysisList}
+              columns={analysisColumns}
+              rowKey="name"
+              pagination={{ pageSize: 20 }}
+              size="small"
+            />
+          </>
+        )}
+      </Drawer>
     </div>
   );
 }
