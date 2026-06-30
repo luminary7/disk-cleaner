@@ -23,7 +23,9 @@ import {
   LoadingOutlined,
   ReloadOutlined,
 } from '@ant-design/icons';
+import largeFileImg from '../assets/ui-kit/large-file.png';
 import type { ColumnsType } from 'antd/es/table';
+import DriveSelectModal from '../components/DriveSelectModal';
 
 const { Title, Text } = Typography;
 
@@ -95,6 +97,8 @@ export default function LargeFiles() {
   const [analyzingFileId, setAnalyzingFileId] = useState<string | null>(null);
   const [viewingFileId, setViewingFileId] = useState<string | null>(null);
 
+  const [showDriveSelect, setShowDriveSelect] = useState(false);
+
   // 倒计时删除确认
   const [countdownState, setCountdownState] = useState<{
     visible: boolean;
@@ -137,14 +141,21 @@ export default function LargeFiles() {
     });
   }, [files]);
 
-  const handleScan = async () => {
+  const handleScan = () => {
+    if (!window.electronAPI) return;
+    // 先弹出盘符选择弹窗
+    setShowDriveSelect(true);
+  };
+
+  const handleStartScanWithDrives = async (drives: string[]) => {
+    setShowDriveSelect(false);
     if (!window.electronAPI) return;
     setLoading(true);
     setFiles([]);
     setSingleAnalysisMap(new Map());
     setSelectedIds(new Set());
     try {
-      const result = await window.electronAPI.startLargeFileScan();
+      const result = await window.electronAPI.startLargeFileScan(drives);
       // 按大小倒序排序，保证初始展示和增量数据一致
       result.sort((a, b) => b.size - a.size);
       setFiles(result);
@@ -347,6 +358,7 @@ export default function LargeFiles() {
     <div>
       <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
         <Space>
+          <img src={largeFileImg} alt="大文件" style={{ width: 32, height: 32, borderRadius: 6 }} />
           <Title level={4} style={{ margin: 0 }}>大文件分析</Title>
           {loading && (
             <Text type="secondary" style={{ fontSize: 13 }}>
@@ -566,6 +578,13 @@ export default function LargeFiles() {
           </Descriptions>
         )}
       </Modal>
+
+      {/* 盘符选择弹窗 */}
+      <DriveSelectModal
+        open={showDriveSelect}
+        onConfirm={handleStartScanWithDrives}
+        onCancel={() => setShowDriveSelect(false)}
+      />
     </div>
   );
 }

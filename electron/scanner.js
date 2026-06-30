@@ -71,21 +71,33 @@ function makeId(prefix) {
 }
 
 /**
- * 开始标准扫描
+ * 开始标准扫描（多盘版）
+ * @param {function} onProgress 进度回调
+ * @param {string[]} [drives=['C:\\']] 要扫描的盘符列表
  */
-async function startScan(onProgress) {
+async function startScan(onProgress, drives = ['C:\\']) {
   cancelRequested = false;
   const allItems = [];
   let totalSize = 0;
 
-  // 收集所有存在的目标路径
-  const targets = [];
+  // 收集 SCAN_TARGETS 模板路径（原始 C: 基路径）
+  const templates = [];
   for (const target of SCAN_TARGETS) {
     for (const p of target.paths()) {
-      if (p) {
-        try { await fsp.access(p); } catch { continue; }
-        targets.push({ ...target, resolvedPath: p });
-      }
+      if (p) templates.push({ ...target, originalPath: p });
+    }
+  }
+
+  // 为每个盘符自适应路径，只保留存在的
+  const targets = [];
+  for (const drive of drives) {
+    const dl = drive.replace(':\\', '');
+    for (const tpl of templates) {
+      const adaptedPath = tpl.originalPath.replace(/^[A-Z]:\\/i, drive);
+      try {
+        await fsp.access(adaptedPath);
+        targets.push({ ...tpl, resolvedPath: adaptedPath, driveLetter: dl });
+      } catch { /* 该盘符下此路径不存在，跳过 */ }
     }
   }
 
@@ -94,12 +106,12 @@ async function startScan(onProgress) {
 
   for (const target of targets) {
     if (cancelRequested) break;
+    const prefix = `[${target.driveLetter}] `;
 
-    // 发送扫描开始通知
     onProgress({
       current: completed,
       total,
-      currentItem: `正在扫描: ${target.name}...`,
+      currentItem: `正在扫描 ${prefix}${target.name}...`,
       phase: `正在扫描垃圾文件...`,
     });
 
@@ -108,11 +120,10 @@ async function startScan(onProgress) {
     totalSize += items.reduce((sum, i) => sum + i.size, 0);
     completed++;
 
-    // 发送该目录下发现的所有文件，用于前端实时展示
     onProgress({
       current: completed,
       total,
-      currentItem: `已扫描: ${target.name} (${items.length} 项)`,
+      currentItem: `已扫描 ${prefix}${target.name} (${items.length} 项)`,
       phase: `正在扫描垃圾文件...`,
       batchItems: items,
     });
@@ -175,17 +186,18 @@ async function scanDirectoryRecursive(dirPath, category, sourceName, depth) {
 }
 
 /**
- * 大文件扫描 — 递归遍历目录，收集 >50MB 的文件
+ * 大文件扫描 — 递归遍历目录，收集 >50MB 的文件（多盘版）
+ * @param {function} onProgress 进度回调
+ * @param {string[]} [drives=['C:\\']] 要扫描的盘符列表
  */
-async function startLargeFileScan(onProgress) {
+async function startLargeFileScan(onProgress, drives = ['C:\\']) {
   cancelRequested = false;
   const largeFiles = [];
-  const rootDirs = ['C:\\'];
   let scanned = 0;
 
-  // 收集第一层非排除目录
+  // 收集所有选中盘符的第一层非排除目录
   const dirsToScan = [];
-  for (const root of rootDirs) {
+  for (const root of drives) {
     try {
       const entries = await fsp.readdir(root, { withFileTypes: true });
       for (const entry of entries) {

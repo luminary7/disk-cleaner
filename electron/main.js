@@ -1,5 +1,7 @@
 const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const path = require('path');
+const fs = require('fs');
+const { execSync } = require('child_process');
 const scanner = require('./scanner');
 const fileOperator = require('./file-operator');
 const { AIProvider } = require('./ai-provider');
@@ -67,10 +69,11 @@ app.on('activate', () => {
 
 function registerIPC() {
   // ========= 扫描 =========
-  ipcMain.handle('scan:start', async () => {
-    const result = await scanner.startScan((progress) => {
-      mainWindow?.webContents.send('scan:progress', progress);
-    });
+  ipcMain.handle('scan:start', async (_event, drives) => {
+    const result = await scanner.startScan(
+      (progress) => { mainWindow?.webContents.send('scan:progress', progress); },
+      drives
+    );
     mainWindow?.webContents.send('scan:complete', result);
     return result;
   });
@@ -80,10 +83,11 @@ function registerIPC() {
   });
 
   // ========= 大文件扫描 =========
-  ipcMain.handle('largefile:start', async () => {
-    const result = await scanner.startLargeFileScan((progress) => {
-      mainWindow?.webContents.send('largefile:progress', progress);
-    });
+  ipcMain.handle('largefile:start', async (_event, drives) => {
+    const result = await scanner.startLargeFileScan(
+      (progress) => { mainWindow?.webContents.send('largefile:progress', progress); },
+      drives
+    );
     const totalSize = result.reduce((s, i) => s + i.size, 0);
     mainWindow?.webContents.send('largefile:complete', { items: result, totalSize });
     return result;
@@ -91,6 +95,29 @@ function registerIPC() {
 
   ipcMain.handle('largefile:cancel', () => {
     scanner.cancelScan();
+  });
+
+  // ========= 盘符检测 =========
+  ipcMain.handle('drives:detect', async () => {
+    const drives = [];
+    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+    for (const letter of letters) {
+      const root = `${letter}:\\`;
+      try {
+        await fs.promises.access(root);
+        let label = '';
+        try {
+          const output = execSync(
+            `wmic logicaldisk where name="${letter}:" get volumename /format:value`,
+            { encoding: 'utf8', timeout: 2000 }
+          );
+          const match = output.match(/VolumeName=(.+)/);
+          label = match ? match[1].trim() : '';
+        } catch { /* volume label not available */ }
+        drives.push({ letter, label, path: root });
+      } catch { /* drive not accessible */ }
+    }
+    return drives;
   });
 
   // ========= 清理 =========

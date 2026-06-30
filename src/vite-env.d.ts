@@ -56,8 +56,15 @@ declare global {
     alternativeAction?: string;
   }
 
+  interface DriveInfo {
+    letter: string;
+    label: string;
+    path: string;
+  }
+
   interface ElectronAPI {
-    startScan: () => Promise<ScanResult>;
+    detectDrives: () => Promise<DriveInfo[]>;
+    startScan: (drives?: string[]) => Promise<ScanResult>;
     cancelScan: () => Promise<void>;
     onScanProgress: (callback: (data: ScanProgress) => void) => void;
     onScanComplete: (callback: (data: ScanResult) => void) => void;
@@ -67,7 +74,7 @@ declare global {
     onCleanProgress: (callback: (data: CleanProgress) => void) => void;
     onCleanComplete: (callback: (data: CleanResult) => void) => void;
 
-    startLargeFileScan: () => Promise<ScanItem[]>;
+    startLargeFileScan: (drives?: string[]) => Promise<ScanItem[]>;
     cancelLargeFileScan: () => Promise<void>;
     onLargeFileProgress: (callback: (data: ScanProgress) => void) => void;
     onLargeFileComplete: (callback: (data: { items: ScanItem[]; totalSize: number }) => void) => void;

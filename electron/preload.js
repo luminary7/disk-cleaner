@@ -1,8 +1,11 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
+  // 盘符检测
+  detectDrives: () => ipcRenderer.invoke('drives:detect'),
+
   // 扫描相关
-  startScan: () => ipcRenderer.invoke('scan:start'),
+  startScan: (drives) => ipcRenderer.invoke('scan:start', drives),
   cancelScan: () => ipcRenderer.invoke('scan:cancel'),
   onScanProgress: (callback) => {
     ipcRenderer.on('scan:progress', (_event, data) => callback(data));
@@ -24,7 +27,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
 
   // 大文件扫描
-  startLargeFileScan: () => ipcRenderer.invoke('largefile:start'),
+  startLargeFileScan: (drives) => ipcRenderer.invoke('largefile:start', drives),
   cancelLargeFileScan: () => ipcRenderer.invoke('largefile:cancel'),
   onLargeFileProgress: (callback) => {
     ipcRenderer.on('largefile:progress', (_event, data) => callback(data));

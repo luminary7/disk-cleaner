@@ -10,10 +10,13 @@ import {
   LockOutlined,
   FileTextOutlined,
   DownOutlined,
-  CheckCircleOutlined,
 } from '@ant-design/icons';
 import gsap from 'gsap';
 import ParticleBackground from '../components/ParticleBackground';
+import DriveSelectModal from '../components/DriveSelectModal';
+import scanStateImg from '../assets/ui-kit/scan-state.png';
+import safeCleanImg from '../assets/ui-kit/safe-clean.png';
+import cautionProtectImg from '../assets/ui-kit/caution-protect.png';
 
 const { Title, Text } = Typography;
 
@@ -66,6 +69,7 @@ export default function SimpleMode({ onSwitchToAdvanced }: Props) {
   const [cleanResult, setCleanResult] = useState<{ freedBytes: number } | null>(null);
   const [cleaningProgress, setCleaningProgress] = useState({ current: 0, total: 0 });
   const [errorMsg, setErrorMsg] = useState('');
+  const [showDriveSelect, setShowDriveSelect] = useState(false);
 
   const hasAPI = !!window.electronAPI;
 
@@ -155,12 +159,12 @@ export default function SimpleMode({ onSwitchToAdvanced }: Props) {
   }, [phase]);
 
   // ============================
-  // GSAP: 扫描阶段 面板滑入
+  // GSAP: 扫描阶段 面板滑入（不控制 opacity，避免和 React 重渲染冲突导致面板消失）
   // ============================
   useEffect(() => {
     if (phase === 'scanning' && leftPanelRef.current && rightPanelRef.current) {
-      gsap.fromTo(leftPanelRef.current, { opacity: 0, x: -30 }, { opacity: 1, x: 0, duration: 0.4, ease: 'power2.out' });
-      gsap.fromTo(rightPanelRef.current, { opacity: 0, x: 30 }, { opacity: 1, x: 0, duration: 0.4, delay: 0.1, ease: 'power2.out' });
+      gsap.fromTo(leftPanelRef.current, { x: -20 }, { x: 0, duration: 0.35, ease: 'power2.out' });
+      gsap.fromTo(rightPanelRef.current, { x: 20 }, { x: 0, duration: 0.35, delay: 0.1, ease: 'power2.out' });
     }
   }, [phase]);
 
@@ -215,12 +219,18 @@ export default function SimpleMode({ onSwitchToAdvanced }: Props) {
   // ============================
   // 处理函数
   // ============================
-  const handleScan = useCallback(async () => {
+  const handleScan = useCallback(() => {
     if (!window.electronAPI) {
       setErrorMsg('未检测到 Electron 环境。请使用 npm run electron:dev 启动应用，而非 npm run dev。');
       setPhase('error');
       return;
     }
+    // 先弹出盘符选择弹窗
+    setShowDriveSelect(true);
+  }, []);
+
+  const handleStartScanWithDrives = useCallback(async (drives: string[]) => {
+    setShowDriveSelect(false);
     setErrorMsg('');
     setAllScanItems([]);
     setVisibleCount(PAGE_SIZE);
@@ -229,7 +239,7 @@ export default function SimpleMode({ onSwitchToAdvanced }: Props) {
     setPhase('scanning');
     setProgress({ current: 0, total: 100, text: '正在准备扫描...' });
     try {
-      await window.electronAPI.startScan();
+      await window.electronAPI!.startScan(drives);
     } catch (err: any) {
       setErrorMsg(`扫描失败: ${err?.message || '未知错误'}`);
       setPhase('error');
@@ -510,7 +520,7 @@ export default function SimpleMode({ onSwitchToAdvanced }: Props) {
               border: '1px solid rgba(255,255,255,0.9)',
             }}
           >
-            <ScanOutlined style={{ fontSize: 40, color: '#1677ff', marginBottom: 16 }} />
+            <img src={scanStateImg} alt="扫描中" style={{ width: 160, height: 'auto', marginBottom: 12 }} />
             <Title level={4} style={{ margin: '0 0 16px' }}>正在扫描...</Title>
             <Progress
               type="circle"
@@ -551,7 +561,7 @@ export default function SimpleMode({ onSwitchToAdvanced }: Props) {
               border: '1px solid rgba(255,255,255,0.9)',
             }}
           >
-            <CheckCircleOutlined style={{ fontSize: 44, color: '#52c41a', marginBottom: 12 }} />
+            <img src={safeCleanImg} alt="扫描完成" style={{ width: 160, height: 'auto', marginBottom: 12 }} />
             <Title level={4} style={{ margin: '0 0 4px' }}>扫描完成</Title>
             <Text
               strong
@@ -618,7 +628,7 @@ export default function SimpleMode({ onSwitchToAdvanced }: Props) {
               border: '1px solid rgba(255,255,255,0.9)',
             }}
           >
-            <DeleteOutlined style={{ fontSize: 40, color: '#52c41a', marginBottom: 16 }} />
+            <img src={cautionProtectImg} alt="正在清理" style={{ width: 160, height: 'auto', marginBottom: 12 }} />
             <Title level={4} style={{ margin: '0 0 16px' }}>正在清理...</Title>
             <Progress
               type="circle"
@@ -647,7 +657,7 @@ export default function SimpleMode({ onSwitchToAdvanced }: Props) {
           }}
         >
           <div style={{ textAlign: 'center' }}>
-            <DeleteOutlined style={{ fontSize: 64, color: '#52c41a', marginBottom: 16 }} />
+            <img src={safeCleanImg} alt="清理完成" style={{ width: 160, height: 'auto', marginBottom: 16 }} />
             <Title level={2} style={{ margin: '0 0 4px' }}>
               已释放 {formatSize(cleanResult.freedBytes)}！
             </Title>
@@ -695,6 +705,13 @@ export default function SimpleMode({ onSwitchToAdvanced }: Props) {
           </div>
         </div>
       )}
+
+      {/* 盘符选择弹窗 */}
+      <DriveSelectModal
+        open={showDriveSelect}
+        onConfirm={handleStartScanWithDrives}
+        onCancel={() => setShowDriveSelect(false)}
+      />
     </div>
     </div>
   );

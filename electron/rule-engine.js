@@ -5,14 +5,14 @@
 
 // 系统目录黑名单 — 永远不扫描、不删除
 const SYSTEM_EXCLUSIONS = [
-  /^C:\\Windows/i,
-  /^C:\\Program Files\\/i,
-  /^C:\\Program Files \(x86\)\\/i,
-  /^C:\\ProgramData/i,
-  /^C:\\Boot/i,
-  /^C:\\System Volume Information/i,
-  /^C:\\\$Recycle\.Bin/i,
-  /^C:\\Recovery/i,
+  /^[A-Z]:\\Windows/i,
+  /^[A-Z]:\\Program Files\\/i,
+  /^[A-Z]:\\Program Files \(x86\)\\/i,
+  /^[A-Z]:\\ProgramData/i,
+  /^[A-Z]:\\Boot/i,
+  /^[A-Z]:\\System Volume Information/i,
+  /^[A-Z]:\\\$Recycle\.Bin/i,
+  /^[A-Z]:\\Recovery/i,
 ];
 
 // 系统关键文件类型 — 即使不在系统目录也警告
