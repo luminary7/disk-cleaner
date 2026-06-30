@@ -64,10 +64,11 @@ const SCAN_TARGETS = [
 ];
 
 /**
- * 生成扫描项 ID
+ * 生成扫描项 ID（全局递增计数器保证唯一）
  */
+let _idCounter = 0;
 function makeId(prefix) {
-  return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  return `${prefix}-${Date.now().toString(36)}-${(++_idCounter).toString(36)}`;
 }
 
 /**

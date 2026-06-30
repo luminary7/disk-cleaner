@@ -118,7 +118,10 @@ export default function LargeFiles() {
     window.electronAPI.onLargeFileProgress((data) => {
       if (data.batchItems && data.batchItems.length > 0) {
         setFiles(prev => {
-          const next = [...prev, ...data.batchItems!];
+          const existingIds = new Set(prev.map(i => i.id));
+          const newItems = data.batchItems!.filter(i => !existingIds.has(i.id));
+          if (newItems.length === 0) return prev;
+          const next = [...prev, ...newItems];
           next.sort((a, b) => b.size - a.size);
           return next;
         });

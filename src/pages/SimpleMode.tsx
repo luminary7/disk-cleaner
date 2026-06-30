@@ -120,7 +120,12 @@ export default function SimpleMode({ onSwitchToAdvanced }: Props) {
         text: data.currentItem || data.phase,
       });
       if (data.batchItems && data.batchItems.length > 0) {
-        setAllScanItems(prev => [...prev, ...data.batchItems!]);
+        setAllScanItems(prev => {
+          const existingIds = new Set(prev.map(i => i.id));
+          const newItems = data.batchItems!.filter(i => !existingIds.has(i.id));
+          if (newItems.length === 0) return prev;
+          return [...prev, ...newItems];
+        });
       }
     });
 
