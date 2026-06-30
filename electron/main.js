@@ -255,6 +255,19 @@ function registerIPC() {
     mainWindow?.webContents.reload(); // 重载渲染进程 + preload 脚本
   });
 
+  // ========= 单文件删除 =========
+  ipcMain.handle('clean:single', async (_event, item) => {
+    const result = await fileOperator.moveToTrash(item.path);
+    return { ...item, success: result.success, error: result.error };
+  });
+
+  // ========= 打开回收站 =========
+  ipcMain.handle('system:open-recycle-bin', async () => {
+    try {
+      require('child_process').execSync('explorer shell:RecycleBinFolder', { timeout: 5000 });
+    } catch { /* 静默失败 */ }
+  });
+
   // ========= Shell =========
   ipcMain.handle('shell:open-file-location', async (_event, filePath) => {
     shell.showItemInFolder(filePath);

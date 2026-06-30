@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { Button, Typography, Progress, Space, Alert, Empty } from 'antd';
+import { Button, Typography, Progress, Space, Alert, Modal } from 'antd';
 import {
   ScanOutlined,
   DeleteOutlined,
@@ -10,6 +10,7 @@ import {
   LockOutlined,
   FileTextOutlined,
   DownOutlined,
+  FolderOpenOutlined,
 } from '@ant-design/icons';
 import gsap from 'gsap';
 import ParticleBackground from '../components/ParticleBackground';
@@ -302,6 +303,43 @@ export default function SimpleMode({ onSwitchToAdvanced }: Props) {
     setVisibleCount(prev => prev + PAGE_SIZE);
   }, []);
 
+  // 单文件删除：直接从列表中移除，不改变当前阶段
+  const handleCleanSingle = useCallback(async (item: ScanItem) => {
+    if (!window.electronAPI) return;
+
+    // 建议保留的文件，弹窗确认
+    if (item.safety === 'keep') {
+      const confirmed = await new Promise<boolean>((resolve) => {
+        Modal.confirm({
+          title: '确认删除系统保护文件？',
+          content: (
+            <div>
+              <p style={{ color: '#ff4d4f', marginBottom: 8 }}>
+                此文件被标记为"建议保留"，删除可能导致程序运行异常或数据丢失！
+              </p>
+              <p style={{ fontSize: 13, color: '#595959', wordBreak: 'break-all' }}>
+                {item.path}
+              </p>
+            </div>
+          ),
+          okText: '确认删除',
+          okType: 'danger',
+          cancelText: '取消',
+          onOk: () => resolve(true),
+          onCancel: () => resolve(false),
+        });
+      });
+      if (!confirmed) return;
+    }
+
+    try {
+      const result = await window.electronAPI.cleanSingle(item);
+      if (result.success) {
+        setAllScanItems(prev => prev.filter(i => i.id !== item.id));
+      }
+    } catch { /* 静默 */ }
+  }, []);
+
   // ============================
   // 渲染: 文件列表项
   // ============================
@@ -325,13 +363,21 @@ export default function SimpleMode({ onSwitchToAdvanced }: Props) {
         onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#f0f0f0'; e.currentTarget.style.boxShadow = 'none'; }}
       >
         <FileTextOutlined style={{ fontSize: 18, color: '#1677ff', marginRight: 12, flexShrink: 0 }} />
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ flex: 1, minWidth: 0, marginRight: 12 }}>
           <Text
             ellipsis
-            style={{ fontSize: 13, fontWeight: 500, maxWidth: 200, color: '#262626', display: 'block' }}
+            style={{ fontSize: 13, fontWeight: 500, color: '#262626', display: 'block' }}
             title={item.name}
           >
             {item.name}
+          </Text>
+          <Text
+            type="secondary"
+            ellipsis
+            style={{ fontSize: 11, display: 'block', marginTop: 1 }}
+            title={item.path}
+          >
+            {item.path}
           </Text>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, marginTop: 2 }}>
             <span style={{ color: safety.color, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
@@ -340,7 +386,23 @@ export default function SimpleMode({ onSwitchToAdvanced }: Props) {
             </span>
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+          <Button
+            type="text"
+            size="small"
+            icon={<FolderOpenOutlined />}
+            title="打开文件所在位置"
+            onClick={() => window.electronAPI?.openFileLocation(item.path)}
+            style={{ fontSize: 13, color: '#8c8c8c' }}
+          />
+          <Button
+            type="text"
+            size="small"
+            icon={<DeleteOutlined />}
+            title={item.safety === 'keep' ? '建议保留，可强制删除' : '删除此文件'}
+            onClick={() => handleCleanSingle(item)}
+            style={{ fontSize: 13, color: item.safety === 'keep' ? '#d9d9d9' : '#ff4d4f' }}
+          />
           <span
             style={{
               fontSize: 11,
@@ -350,6 +412,7 @@ export default function SimpleMode({ onSwitchToAdvanced }: Props) {
               borderRadius: 4,
               fontWeight: 500,
               whiteSpace: 'nowrap',
+              marginLeft: 4,
             }}
           >
             {cat.label}
@@ -618,6 +681,14 @@ export default function SimpleMode({ onSwitchToAdvanced }: Props) {
               style={{ marginTop: 16, width: '100%' }}
             >
               重新扫描
+            </Button>
+            <Button
+              icon={<FolderOpenOutlined />}
+              onClick={() => window.electronAPI?.openRecycleBin()}
+              style={{ marginTop: 8, width: '100%', fontSize: 12 }}
+              size="small"
+            >
+              打开回收站
             </Button>
           </div>
           {/* 右面板：文件列表 */}

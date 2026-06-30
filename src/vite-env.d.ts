@@ -105,6 +105,12 @@ declare global {
 
     openFileLocation: (filePath: string) => Promise<void>;
 
+    // 单文件删除
+    cleanSingle: (item: ScanItem) => Promise<ScanItem & { success: boolean; error?: string }>;
+
+    // 打开回收站
+    openRecycleBin: () => Promise<void>;
+
     // 开发辅助
     reloadWindow: () => Promise<void>;
   }

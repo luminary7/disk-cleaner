@@ -61,6 +61,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // 系统还原点
   createRestorePoint: () => ipcRenderer.invoke('system:create-restore-point'),
 
+  // 单文件删除（不触发 clean:complete 事件）
+  cleanSingle: (item) => ipcRenderer.invoke('clean:single', item),
+
+  // 打开回收站
+  openRecycleBin: () => ipcRenderer.invoke('system:open-recycle-bin'),
+
   // 打开文件位置
   openFileLocation: (filePath) => ipcRenderer.invoke('shell:open-file-location', filePath),
 
