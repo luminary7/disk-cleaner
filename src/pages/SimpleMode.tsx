@@ -152,11 +152,12 @@ export default function SimpleMode({ onSwitchToAdvanced }: Props) {
 
     // 清理：组件卸载时移除所有 IPC 监听器，防止累积导致重复 key
     return () => {
-      window.electronAPI!.removeAllListeners('scan:progress');
-      window.electronAPI!.removeAllListeners('scan:complete');
-      window.electronAPI!.removeAllListeners('scan:error');
-      window.electronAPI!.removeAllListeners('clean:progress');
-      window.electronAPI!.removeAllListeners('clean:complete');
+      if (!window.electronAPI) return;
+      window.electronAPI.removeAllListeners('scan:progress');
+      window.electronAPI.removeAllListeners('scan:complete');
+      window.electronAPI.removeAllListeners('scan:error');
+      window.electronAPI.removeAllListeners('clean:progress');
+      window.electronAPI.removeAllListeners('clean:complete');
     };
   }, []);
 
