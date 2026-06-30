@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Card,
   Button,
@@ -38,8 +38,12 @@ export default function CleanItems() {
   const [cleaning, setCleaning] = useState(false);
 
   // 仅监听增量批次，用于实时滚动展示
+  // 用 ref 防止 StrictMode 下重复注册导致文件重复
+  const listenerRegistered = useRef(false);
   useEffect(() => {
     if (!window.electronAPI) return;
+    if (listenerRegistered.current) return;
+    listenerRegistered.current = true;
 
     window.electronAPI.onScanProgress((data) => {
       if (data.batchItems && data.batchItems.length > 0) {
