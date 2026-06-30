@@ -1,0 +1,22 @@
+node_modules/
+dist/
+release/
+.cache/
+*.log
+
+# IDE
+.idea/
+.trae/
+.codex/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+
+# Build output
+*.exe

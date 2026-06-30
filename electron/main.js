@@ -1,0 +1,173 @@
+const { app, BrowserWindow, ipcMain, shell } = require('electron');
+const path = require('path');
+const scanner = require('./scanner');
+const fileOperator = require('./file-operator');
+const { AIProvider } = require('./ai-provider');
+const Store = require('./store');
+const logger = require('./logger');
+
+const isDev = process.env.NODE_ENV === 'development';
+
+let mainWindow = null;
+let store = null;
+let aiProvider = null;
+
+// ── 窗口创建 ──
+
+function createWindow() {
+  mainWindow = new BrowserWindow({
+    width: 1000,
+    height: 750,
+    minWidth: 800,
+    minHeight: 600,
+    title: 'C盘清理工具',
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+
+  if (isDev) {
+    mainWindow.loadURL('http://localhost:5173');
+    mainWindow.webContents.openDevTools();
+  } else {
+    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
+  }
+
+  mainWindow.on('closed', () => {
+    mainWindow = null;
+  });
+}
+
+app.whenReady().then(() => {
+  // 初始化模块
+  store = new Store();
+  const aiConfig = store.get('aiConfig', { mode: 'disabled' });
+  aiProvider = new AIProvider(aiConfig);
+
+  createWindow();
+  registerIPC();
+});
+
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') {
+    app.quit();
+  }
+});
+
+app.on('activate', () => {
+  if (BrowserWindow.getAllWindows().length === 0) {
+    createWindow();
+  }
+});
+
+// ── IPC 通道注册 ──
+
+function registerIPC() {
+  // ========= 扫描 =========
+  ipcMain.handle('scan:start', async () => {
+    const result = await scanner.startScan((progress) => {
+      mainWindow?.webContents.send('scan:progress', progress);
+    });
+    mainWindow?.webContents.send('scan:complete', result);
+    return result;
+  });
+
+  ipcMain.handle('scan:cancel', () => {
+    scanner.cancelScan();
+  });
+
+  // ========= 大文件扫描 =========
+  ipcMain.handle('largefile:start', async () => {
+    const result = await scanner.startLargeFileScan((progress) => {
+      mainWindow?.webContents.send('largefile:progress', progress);
+    });
+    const totalSize = result.reduce((s, i) => s + i.size, 0);
+    mainWindow?.webContents.send('largefile:complete', { items: result, totalSize });
+    return result;
+  });
+
+  ipcMain.handle('largefile:cancel', () => {
+    scanner.cancelScan();
+  });
+
+  // ========= 清理 =========
+  ipcMain.handle('clean:execute', async (_event, items) => {
+    const results = await fileOperator.moveBatchToTrash(items);
+    const successCount = results.filter((r) => r.success).length;
+    const freedBytes = results
+      .filter((r) => r.success)
+      .reduce((sum, r) => sum + (r.size || 0), 0);
+
+    // 进度上报
+    let completed = 0;
+    for (const r of results) {
+      completed++;
+      mainWindow?.webContents.send('clean:progress', {
+        current: completed,
+        total: results.length,
+        currentItem: r.name || '',
+      });
+    }
+
+    mainWindow?.webContents.send('clean:complete', {
+      itemCount: successCount,
+      freedBytes,
+    });
+
+    return { itemCount: successCount, freedBytes };
+  });
+
+  // ========= AI =========
+  ipcMain.handle('ai:test-connection', async (_event, config) => {
+    const provider = new AIProvider(config);
+    return await provider.testConnection();
+  });
+
+  ipcMain.handle('ai:suggest', async (_event, scanSummary) => {
+    return await aiProvider.getSuggestion(scanSummary);
+  });
+
+  ipcMain.handle('ai:chat', async (_event, messages) => {
+    return await aiProvider.chat(messages);
+  });
+
+  ipcMain.handle('ai:save-config', async (_event, config) => {
+    aiProvider.updateConfig(config);
+    store.set('aiConfig', config);
+  });
+
+  ipcMain.handle('ai:get-config', async () => {
+    return store.get('aiConfig', { mode: 'disabled' });
+  });
+
+  // ========= 日志 =========
+  ipcMain.handle('log:get', async () => {
+    return logger.readLogs();
+  });
+
+  ipcMain.handle('log:open-folder', async () => {
+    const logsDir = logger.getLogsDir();
+    shell.openPath(logsDir);
+  });
+
+  // ========= 设置 =========
+  ipcMain.handle('settings:get', async () => {
+    return store.get('settings', { createRestorePoint: true });
+  });
+
+  ipcMain.handle('settings:save', async (_event, settings) => {
+    store.set('settings', settings);
+  });
+
+  // ========= 系统 =========
+  ipcMain.handle('system:create-restore-point', async () => {
+    return fileOperator.createSystemRestorePoint();
+  });
+
+  // ========= Shell =========
+  ipcMain.handle('shell:open-file-location', async (_event, filePath) => {
+    shell.showItemInFolder(filePath);
+  });
+}
