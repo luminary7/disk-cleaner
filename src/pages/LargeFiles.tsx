@@ -88,7 +88,8 @@ export default function LargeFiles() {
     setSelectedIds(new Set());
     try {
       const result = await window.electronAPI.startLargeFileScan();
-      // 以返回值为准，覆盖增量积累
+      // 按大小倒序排序，保证初始展示和增量数据一致
+      result.sort((a, b) => b.size - a.size);
       setFiles(result);
       message.success(`找到 ${result.length} 个大文件`);
     } catch {
@@ -148,17 +149,16 @@ export default function LargeFiles() {
     setAnalyzing(true);
     try {
       const result = await window.electronAPI.analyzeFiles(files);
-      if (result && result.analysis) {
-        const map = new Map<string, FileAnalysis>();
-        result.analysis.forEach((a) => map.set(a.name.toLowerCase(), a));
-        setAnalysisMap(map);
-        setDrawerVisible(true);
-        message.success(`AI 分析完成，共分析 ${result.analysis.length} 个文件`);
-      } else {
-        message.error('AI 分析返回结果异常');
+      if (!result || !result.analysis) {
+        throw new Error('分析返回结果为空');
       }
-    } catch {
-      message.error('AI 分析失败，请检查 AI 配置');
+      const map = new Map<string, FileAnalysis>();
+      result.analysis.forEach((a) => map.set(a.name.toLowerCase(), a));
+      setAnalysisMap(map);
+      setDrawerVisible(true);
+      message.success(`AI 分析完成，共分析 ${result.analysis.length} 个文件`);
+    } catch (err: any) {
+      message.error(`AI 分析失败: ${err?.message || '请检查 AI 配置'}`);
     } finally {
       setAnalyzing(false);
     }
