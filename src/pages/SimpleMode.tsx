@@ -13,6 +13,7 @@ import {
   CheckCircleOutlined,
 } from '@ant-design/icons';
 import gsap from 'gsap';
+import ParticleBackground from '../components/ParticleBackground';
 
 const { Title, Text } = Typography;
 
@@ -438,8 +439,13 @@ export default function SimpleMode({ onSwitchToAdvanced }: Props) {
         overflow: 'hidden',
       }}
     >
+      {/* 粒子动态背景 */}
+      <ParticleBackground phase={phase} />
+
+      {/* 内容层（在粒子之上） */}
+      <div style={{ position: 'relative', zIndex: 1, flex: 1, display: 'flex', flexDirection: 'column' }}>
       {/* 顶栏 */}
-      <div style={{ position: 'absolute', top: 16, right: 20, zIndex: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div style={{ position: 'absolute', right: 20, zIndex: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
         {!hasAPI && (
           <Alert
             message="浏览器模式"
@@ -449,7 +455,7 @@ export default function SimpleMode({ onSwitchToAdvanced }: Props) {
             style={{ padding: '4px 12px', fontSize: 12 }}
           />
         )}
-        <Button type="link" onClick={onSwitchToAdvanced} style={{ fontSize: 13 }}>
+        <Button type="link" onClick={onSwitchToAdvanced} style={{ fontSize: 13, marginBottom: 4 }}>
           进入高级模式 <RightOutlined />
         </Button>
       </div>
@@ -689,6 +695,7 @@ export default function SimpleMode({ onSwitchToAdvanced }: Props) {
           </div>
         </div>
       )}
+    </div>
     </div>
   );
 }
