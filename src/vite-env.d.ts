@@ -61,7 +61,7 @@ declare global {
     startLargeFileScan: () => Promise<ScanItem[]>;
     cancelLargeFileScan: () => Promise<void>;
     onLargeFileProgress: (callback: (data: ScanProgress) => void) => void;
-    onLargeFileComplete: (callback: (data: ScanItem[] & { totalSize: number }) => void) => void;
+    onLargeFileComplete: (callback: (data: { items: ScanItem[]; totalSize: number }) => void) => void;
 
     testAIConnection: (config: AIConfig) => Promise<{ success: boolean; message: string }>;
     getAISuggestion: (scanSummary: string) => Promise<string>;

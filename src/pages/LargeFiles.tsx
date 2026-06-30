@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Card,
   Button,
@@ -69,15 +69,32 @@ export default function LargeFiles() {
   const [analysisMap, setAnalysisMap] = useState<Map<string, FileAnalysis>>(new Map());
   const [drawerVisible, setDrawerVisible] = useState(false);
 
+  // 实时扫描：监听进度事件积累文件
+  useEffect(() => {
+    if (!window.electronAPI) return;
+
+    window.electronAPI.onLargeFileProgress((data) => {
+      if (data.batchItems && data.batchItems.length > 0) {
+        setFiles(prev => [...prev, ...data.batchItems!]);
+      }
+    });
+
+    window.electronAPI.onLargeFileComplete((data) => {
+      setFiles(data.items);
+      setAnalysisMap(new Map());
+      setLoading(false);
+      message.success(`找到 ${data.items.length} 个大文件`);
+    });
+  }, []);
+
   const handleScan = async () => {
     if (!window.electronAPI) return;
     setLoading(true);
+    setFiles([]);
+    setAnalysisMap(new Map());
     try {
-      const result = await window.electronAPI.startLargeFileScan();
-      setFiles(result);
-      setAnalysisMap(new Map()); // 新扫描后清空之前的分析结果
-      message.success(`找到 ${result.length} 个大文件`);
-    } finally {
+      await window.electronAPI.startLargeFileScan();
+    } catch {
       setLoading(false);
     }
   };
@@ -236,7 +253,14 @@ export default function LargeFiles() {
   return (
     <div>
       <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
-        <Title level={4} style={{ margin: 0 }}>大文件分析</Title>
+        <Space>
+          <Title level={4} style={{ margin: 0 }}>大文件分析</Title>
+          {loading && (
+            <Text type="secondary" style={{ fontSize: 13 }}>
+              已扫描 {files.length} 个大文件...
+            </Text>
+          )}
+        </Space>
         <Space>
           <Select
             value={typeFilter}
@@ -293,7 +317,7 @@ export default function LargeFiles() {
           }}
           locale={{
             emptyText: loading
-              ? '正在扫描大文件...'
+              ? `正在扫描大文件，已发现 ${files.length} 个...`
               : '点击「开始扫描」查找 50MB 以上的大文件',
           }}
         />

@@ -10,12 +10,11 @@ import {
   Space,
   Checkbox,
   Row,
-  Col,
 } from 'antd';
-import { ScanOutlined, DeleteOutlined, ReloadOutlined } from '@ant-design/icons';
+import { ScanOutlined, DeleteOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 
-const { Title } = Typography;
+const { Title, Text } = Typography;
 
 const CATEGORY_LABELS: Record<string, string> = {
   temp: '系统临时文件',
@@ -38,16 +37,36 @@ export default function CleanItems() {
   const [loading, setLoading] = useState(false);
   const [cleaning, setCleaning] = useState(false);
 
+  // 实时扫描：监听进度事件积累文件
+  useEffect(() => {
+    if (!window.electronAPI) return;
+
+    window.electronAPI.onScanProgress((data) => {
+      if (data.batchItems && data.batchItems.length > 0) {
+        setItems(prev => [...prev, ...data.batchItems!]);
+      }
+    });
+
+    window.electronAPI.onScanComplete((data) => {
+      setItems(data.items);
+      const safeIds = data.items.filter((i) => i.safety === 'safe').map((i) => i.id);
+      setSelectedIds(new Set(safeIds));
+      setLoading(false);
+    });
+
+    window.electronAPI.onScanError(() => {
+      setLoading(false);
+    });
+  }, []);
+
   const handleScan = async () => {
     if (!window.electronAPI) return;
     setLoading(true);
+    setItems([]);
+    setSelectedIds(new Set());
     try {
-      const result = await window.electronAPI.startScan();
-      setItems(result.items);
-      // Auto-select safe items
-      const safeIds = result.items.filter((i) => i.safety === 'safe').map((i) => i.id);
-      setSelectedIds(new Set(safeIds));
-    } finally {
+      await window.electronAPI.startScan();
+    } catch {
       setLoading(false);
     }
   };
@@ -98,7 +117,18 @@ export default function CleanItems() {
 
   const columns: ColumnsType<ScanItem> = [
     {
-      title: <Checkbox checked={items.length > 0 && selectedIds.size === items.length} />,
+      title: (
+        <Checkbox
+          checked={items.length > 0 && selectedIds.size === items.length}
+          onChange={() => {
+            if (selectedIds.size === items.length) {
+              setSelectedIds(new Set());
+            } else {
+              setSelectedIds(new Set(items.map((i) => i.id)));
+            }
+          }}
+        />
+      ),
       dataIndex: 'id',
       key: 'checkbox',
       width: 40,
@@ -140,7 +170,14 @@ export default function CleanItems() {
   return (
     <div>
       <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
-        <Title level={4} style={{ margin: 0 }}>逐项清理</Title>
+        <Space>
+          <Title level={4} style={{ margin: 0 }}>逐项清理</Title>
+          {loading && (
+            <Text type="secondary" style={{ fontSize: 13 }}>
+              已扫描 {items.length} 项...
+            </Text>
+          )}
+        </Space>
         <Space>
           {items.length > 0 && (
             <>
@@ -174,10 +211,13 @@ export default function CleanItems() {
           rowKey="id"
           pagination={{ pageSize: 20 }}
           size="small"
-          locale={{ emptyText: loading ? '扫描中...' : '点击「开始扫描」查找可清理项目' }}
+          locale={{
+            emptyText: loading
+              ? `正在扫描中，已发现 ${items.length} 项...`
+              : '点击「开始扫描」查找可清理项目',
+          }}
         />
       </Card>
     </div>
   );
 }
-

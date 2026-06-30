@@ -202,6 +202,7 @@ async function startLargeFileScan(onProgress) {
   for (const dir of dirsToScan) {
     if (cancelRequested) break;
     scanned++;
+
     onProgress({
       current: scanned, total,
       currentItem: `扫描: ${dir}`,
@@ -210,6 +211,14 @@ async function startLargeFileScan(onProgress) {
 
     const files = await findLargeFiles(dir, MIN_SIZE, 0);
     largeFiles.push(...files);
+
+    // 该目录的大文件批次，用于前端实时展示
+    onProgress({
+      current: scanned, total,
+      currentItem: `已扫描: ${path.basename(dir)}`,
+      phase: `扫描大文件 ${scanned}/${total}`,
+      batchItems: files,
+    });
   }
 
   // totalSize 属性方便 UI 使用
