@@ -50,6 +50,7 @@ export default function CleanItems() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [cleaning, setCleaning] = useState(false);
+  const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
 
   // 仅监听增量批次，用于实时滚动展示
   // 用 ref 防止 StrictMode 下重复注册导致文件重复
@@ -127,6 +128,35 @@ export default function CleanItems() {
     setSelectedIds(new Set(safeIds));
   };
 
+  const handleSingleDelete = async (item: ScanItem) => {
+    if (!window.electronAPI) return;
+    setDeletingIds(prev => new Set(prev).add(item.id));
+    try {
+      const result = await window.electronAPI.cleanSingle(item);
+      if (result.success) {
+        message.success(`已删除: ${item.name}`);
+        setItems(prev => prev.filter(i => i.id !== item.id));
+        setSelectedIds(prev => {
+          const next = new Set(prev);
+          next.delete(item.id);
+          return next;
+        });
+      } else {
+        message.error(`删除失败: ${result.error || '未知错误'}`);
+      }
+    } catch {
+      message.error('删除失败');
+    } finally {
+      setDeletingIds(prev => {
+        const next = new Set(prev);
+        next.delete(item.id);
+        return next;
+      });
+    }
+  };
+
+  const sortedItems = [...items].sort((a, b) => b.size - a.size);
+
   const columns: ColumnsType<ScanItem> = [
     {
       title: (
@@ -182,6 +212,23 @@ export default function CleanItems() {
         return <Tag color={colors[v]}>{labels[v] || v}</Tag>;
       },
     },
+    {
+      title: '操作',
+      key: 'action',
+      width: 100,
+      render: (_: unknown, record: ScanItem) => (
+        <Button
+          type="link"
+          size="small"
+          danger
+          icon={<DeleteOutlined />}
+          loading={deletingIds.has(record.id)}
+          onClick={() => handleSingleDelete(record)}
+        >
+          删除
+        </Button>
+      ),
+    },
   ];
 
   const totalSelectedSize = items
@@ -204,6 +251,9 @@ export default function CleanItems() {
           {items.length > 0 && (
             <>
               <Button onClick={selectSafe}>仅选安全项目</Button>
+              {selectedIds.size > 0 && (
+                <Button onClick={() => setSelectedIds(new Set())}>取消选择</Button>
+              )}
               <Button
                 type="primary"
                 icon={<DeleteOutlined />}
@@ -215,6 +265,12 @@ export default function CleanItems() {
               </Button>
             </>
           )}
+          <Button
+            icon={<DeleteOutlined />}
+            onClick={() => window.electronAPI?.openRecycleBin()}
+          >
+            打开回收站
+          </Button>
           <Button
             type={items.length === 0 ? 'primary' : 'default'}
             icon={<ScanOutlined />}
@@ -271,7 +327,7 @@ export default function CleanItems() {
       ) : (
         <Card>
           <Table
-          dataSource={items}
+          dataSource={sortedItems}
           columns={columns}
           rowKey="id"
           pagination={{ pageSize: 20 }}
