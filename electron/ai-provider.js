@@ -240,29 +240,17 @@ class AIProvider {
       return `${i + 1}. [${ext}] ${f.path} | ${sizeMB}MB | 系统评级: ${levelText}`;
     }).join('\n');
 
-    const systemPrompt = `你是一个 Windows 磁盘清理专家。用户提供了一批大文件信息，请逐条判断是否可以安全删除。
-
-请从以下维度评估每个文件：
-1. **文件类型与用途** — 根据扩展名、路径、文件名推测
-2. **安全风险** — 是否为系统组件、正在被使用、删除后是否影响程序运行
-3. **清理建议** — 明确给出 safe（可删）/ caution（谨慎）/ keep（建议保留）
-
-回复严格按以下 JSON 格式（不要包含其他内容）：
-{
-  "results": [
-    {"path": "完整路径", "safety": "safe/caution/keep", "reason": "判断理由"}
-  ]
-}`;
+    const systemPrompt = '你是一个 Windows 磁盘清理专家。逐条判断每个文件是否可安全删除。回复严格按 JSON 格式: {"results":[{"path":"完整路径","safety":"safe/caution/keep","reason":"10字内理由"}]}';
 
     const response = await this._request('/chat/completions', {
       model: this.model,
       messages: [
         { role: 'system', content: systemPrompt },
-        { role: 'user', content: `请分析以下 ${files.length} 个文件：\n\n${fileList}` },
+        { role: 'user', content: `分析以下文件：\n${fileList}` },
       ],
-      max_tokens: Math.min(files.length * 150, 16000),
-      temperature: 0.3,
-    });
+      max_tokens: Math.min(files.length * 60, 4000),
+      temperature: 0.1,
+    }, 60000);
 
     const content = response.choices?.[0]?.message?.content || null;
     if (!content) {
@@ -315,7 +303,8 @@ class AIProvider {
   /**
    * 发送 HTTP 请求到 OpenAI 兼容 API
    */
-  _request(path, body) {
+  _request(path, body, timeoutMs) {
+    timeoutMs = timeoutMs || 30000;
     return new Promise((resolve, reject) => {
       try {
         const url = new URL(this.endpoint + path);
@@ -331,7 +320,7 @@ class AIProvider {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${this.apiKey}`,
           },
-          timeout: 30000,
+          timeout: timeoutMs,
         };
 
       const req = transport.request(options, (res) => {

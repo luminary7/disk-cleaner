@@ -22,15 +22,20 @@ import {
   DeleteOutlined,
   PlusOutlined,
   CheckCircleFilled,
+  LinkOutlined,
 } from '@ant-design/icons';
 import aiAnalysisImg from '../assets/ui-kit/ai-analysis.png';
 
 const { Title, Text } = Typography;
+const AGNES_SITE_URL = 'https://agnes-ai.com/';
 
-const PRESET_PROVIDERS: Record<string, { endpoint: string; model: string }> = {
+type PresetProvider = NonNullable<AIConfig['provider']>;
+
+const PRESET_PROVIDERS: Record<PresetProvider, { endpoint: string; model: string }> = {
   deepseek: { endpoint: 'https://api.deepseek.com', model: 'deepseek-v4-flash' },
   minimax: { endpoint: 'https://api.minimax.chat/v1', model: 'Minimax-M3' },
   siliconflow: { endpoint: 'https://api.siliconflow.cn/v1', model: 'Qwen/Qwen2.5-7B-Instruct' },
+  agens: { endpoint: 'https://apihub.agnes-ai.com/v1/', model: 'agnes-2.0-flash' },
 };
 
 interface AIPreset extends AIConfig {
@@ -39,7 +44,7 @@ interface AIPreset extends AIConfig {
 
 export default function AIAssistant() {
   const [mode, setMode] = useState<'disabled' | 'preset' | 'custom'>('disabled');
-  const [provider, setProvider] = useState<'deepseek' | 'minimax' | 'siliconflow'>('deepseek');
+  const [provider, setProvider] = useState<PresetProvider>('deepseek');
   const [apiKey, setApiKey] = useState('');
   const [customEndpoint, setCustomEndpoint] = useState('');
   const [customModel, setCustomModel] = useState('');
@@ -115,6 +120,7 @@ export default function AIAssistant() {
     if (p === 'deepseek') return 'DeepSeek';
     if (p === 'minimax') return 'MiniMax';
     if (p === 'siliconflow') return '硅基流动';
+    if (p === 'agens') return 'Agnes AI';
     return p || '自定义';
   };
 
@@ -241,6 +247,18 @@ export default function AIAssistant() {
     return key.slice(0, 4) + '****' + key.slice(-4);
   };
 
+  const handleOpenAgnesSite = async () => {
+    try {
+      if (window.electronAPI?.openExternal) {
+        await window.electronAPI.openExternal(AGNES_SITE_URL);
+      } else {
+        window.open(AGNES_SITE_URL, '_blank', 'noopener,noreferrer');
+      }
+    } catch {
+      message.error('打开官网失败');
+    }
+  };
+
   return (
     <div>
       <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
@@ -282,8 +300,19 @@ export default function AIAssistant() {
                       <Radio value="deepseek">DeepSeek</Radio>
                       <Radio value="minimax">MiniMax</Radio>
                       <Radio value="siliconflow">硅基流动</Radio>
+                      <Radio value="agens">Agnes AI（免费）</Radio>
                     </Radio.Group>
                   </Form.Item>
+                  {provider === 'agens' && (
+                    <Form.Item>
+                      <Button
+                        icon={<LinkOutlined />}
+                        onClick={handleOpenAgnesSite}
+                      >
+                        访问官网
+                      </Button>
+                    </Form.Item>
+                  )}
                   <Form.Item label="API Endpoint">
                     <Input value={PRESET_PROVIDERS[provider].endpoint} disabled />
                   </Form.Item>

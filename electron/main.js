@@ -202,20 +202,30 @@ function registerIPC() {
 
   // ========= AI =========
 
-  // 批量分析大文件 — 一次性发送所有文件给 AI，不分条调用
+  // 批量分析大文件 — 分批发送，每批 20 个
   ipcMain.handle('ai:analyze-large-files', async (_event, items) => {
-    const BATCH_SIZE = 100;
+    const BATCH_SIZE = 20;
     const allResults = [];
 
     for (let i = 0; i < items.length; i += BATCH_SIZE) {
       const batch = items.slice(i, i + BATCH_SIZE);
+      const current = Math.min(i + BATCH_SIZE, items.length);
+
+      // 发送进度（开始处理该批）
+      mainWindow?.webContents.send('ai:batch-progress', {
+        current: i,
+        total: items.length,
+        currentItem: `正在分析 ${i + 1}-${current} / ${items.length}`,
+      });
+
       const results = await aiProvider.analyzeLargeFiles(batch);
       allResults.push(...results);
 
+      // 发送进度（该批完成）
       mainWindow?.webContents.send('ai:batch-progress', {
-        current: Math.min(i + BATCH_SIZE, items.length),
+        current: current,
         total: items.length,
-        currentItem: `第 ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(items.length / BATCH_SIZE)} 批`,
+        currentItem: `已完成 ${current} / ${items.length}`,
       });
     }
 
@@ -327,5 +337,13 @@ function registerIPC() {
   // ========= Shell =========
   ipcMain.handle('shell:open-file-location', async (_event, filePath) => {
     shell.showItemInFolder(filePath);
+  });
+
+  ipcMain.handle('shell:open-external', async (_event, url) => {
+    const target = new URL(url);
+    if (target.protocol !== 'http:' && target.protocol !== 'https:') {
+      throw new Error('Unsupported URL protocol');
+    }
+    await shell.openExternal(target.toString());
   });
 }

@@ -110,6 +110,7 @@ declare global {
     createRestorePoint: () => Promise<{ success: boolean; message: string }>;
 
     openFileLocation: (filePath: string) => Promise<void>;
+    openExternal: (url: string) => Promise<void>;
 
     // 单文件删除
     cleanSingle: (item: ScanItem) => Promise<ScanItem & { success: boolean; error?: string }>;

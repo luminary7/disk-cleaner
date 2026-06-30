@@ -81,6 +81,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // 打开文件位置
   openFileLocation: (filePath) => ipcRenderer.invoke('shell:open-file-location', filePath),
+  openExternal: (url) => ipcRenderer.invoke('shell:open-external', url),
 
   // IPC 监听器清理（组件卸载时移除指定通道的所有监听器）
   removeAllListeners: (channel) => ipcRenderer.removeAllListeners(channel),
