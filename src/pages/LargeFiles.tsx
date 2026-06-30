@@ -132,6 +132,21 @@ export default function LargeFiles() {
     });
   }, []);
 
+  // 文件更新时自动取消勾选"禁止清理"项
+  useEffect(() => {
+    const keepIds = new Set(files.filter(f => f.safety === 'keep').map(f => f.id));
+    setSelectedIds(prev => {
+      let changed = false;
+      for (const id of prev) {
+        if (keepIds.has(id)) { changed = true; break; }
+      }
+      if (!changed) return prev;
+      const next = new Set(prev);
+      keepIds.forEach(id => next.delete(id));
+      return next;
+    });
+  }, [files]);
+
   const handleScan = async () => {
     if (!window.electronAPI) return;
     setLoading(true);
@@ -200,10 +215,16 @@ export default function LargeFiles() {
     if (!window.electronAPI) return;
     // 关闭倒计时弹窗
     setCountdownState(null);
+    // 安全过滤：禁止清理的文件不可删除
+    const cleanFiles = targetFiles.filter(f => f.safety !== 'keep');
+    if (cleanFiles.length === 0) {
+      message.warning('选中文件中无可删除项目');
+      return;
+    }
     try {
-      const result = await window.electronAPI.executeClean(targetFiles);
+      const result = await window.electronAPI.executeClean(cleanFiles);
       message.success(`已删除 ${result.itemCount} 个文件，释放 ${formatSize(result.freedBytes)}`);
-      setFiles((prev) => prev.filter((f) => !targetFiles.some(t => t.id === f.id)));
+      setFiles((prev) => prev.filter((f) => !cleanFiles.some(t => t.id === f.id)));
       setSelectedIds(new Set());
     } catch {
       message.error('删除失败');
@@ -382,6 +403,9 @@ export default function LargeFiles() {
           rowSelection={{
             selectedRowKeys: Array.from(selectedIds),
             onChange: (keys) => setSelectedIds(new Set(keys as string[])),
+            getCheckboxProps: (record: ScanItem) => ({
+              disabled: record.safety === 'keep',
+            }),
           }}
           locale={{
             emptyText: loading
