@@ -52,6 +52,48 @@ function guessFileType(name: string): string {
   return 'other';
 }
 
+// 文件扩展名 → 标签颜色
+function getExtColor(ext: string): string {
+  const archives = ['zip', 'rar', '7z', 'tar', 'gz', 'bz2', 'xz'];
+  const videos = ['mp4', 'avi', 'mkv', 'mov', 'wmv', 'flv', 'webm'];
+  const logs = ['log', 'tmp'];
+  const images = ['iso', 'img'];
+  const databases = ['db', 'sqlite', 'sqlite3', 'mdb', 'dbx', 'mysql', 'sql', 'dbf'];
+  const executables = ['exe', 'dll', 'msi', 'sys', 'ocx', 'drv', 'cpl'];
+  const documents = ['pdf'];
+  const office = ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'];
+  const code = ['js', 'ts', 'py', 'java', 'cpp', 'cs', 'go', 'rs'];
+  const data = ['json', 'xml', 'yaml', 'yml', 'toml', 'ini', 'cfg'];
+  const pictures = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'ico', 'bmp'];
+  if (archives.includes(ext)) return '#1677ff';
+  if (videos.includes(ext)) return '#722ed1';
+  if (logs.includes(ext)) return '#faad14';
+  if (images.includes(ext)) return '#52c41a';
+  if (databases.includes(ext)) return '#ff4d4f';
+  if (executables.includes(ext)) return '#ff4d4f';
+  if (documents.includes(ext)) return '#fa541c';
+  if (office.includes(ext)) return '#2f54eb';
+  if (code.includes(ext)) return '#722ed1';
+  if (data.includes(ext)) return '#13c2c2';
+  if (pictures.includes(ext)) return '#eb2f96';
+  return '#8c8c8c';
+}
+
+// 判断是否为重要文件（数据库/系统文件等）
+function isImportantFile(item: ScanItem): boolean {
+  if (item.safety !== 'safe') return true;
+  const ext = item.name.split('.').pop()?.toLowerCase() || '';
+  const dangerousExts = ['db', 'sqlite', 'sqlite3', 'mdb', 'dbx', 'mysql', 'sql', 'dbf',
+    'exe', 'dll', 'msi', 'sys', 'ocx', 'drv', 'cpl'];
+  return dangerousExts.includes(ext);
+}
+
+const SAFETY_TAGS: Record<string, { text: string; color: string }> = {
+  safe: { text: '可安全删除', color: 'green' },
+  caution: { text: '谨慎清理', color: 'orange' },
+  keep: { text: '禁止清理', color: 'red' },
+};
+
 export default function LargeFiles() {
   const [files, setFiles] = useState<ScanItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -62,6 +104,14 @@ export default function LargeFiles() {
   const [singleAnalysisMap, setSingleAnalysisMap] = useState<Map<string, SingleFileAnalysis>>(new Map());
   const [analyzingFileId, setAnalyzingFileId] = useState<string | null>(null);
   const [viewingFileId, setViewingFileId] = useState<string | null>(null);
+
+  // 倒计时删除确认
+  const [countdownState, setCountdownState] = useState<{
+    visible: boolean;
+    countdown: number;
+    files: ScanItem[];
+    timerId?: any;
+  } | null>(null);
 
   // 仅监听增量批次，用于实时滚动展示
   // 用 ref 防止 StrictMode 下重复注册导致文件重复
@@ -111,34 +161,60 @@ export default function LargeFiles() {
     const selectedFiles = files.filter((f) => selectedIds.has(f.id));
     if (selectedFiles.length === 0) return;
 
+    // 检查是否包含重要文件
+    const importantFiles = selectedFiles.filter(isImportantFile);
+
+    if (importantFiles.length > 0) {
+      // 10 秒倒计时警告
+      let count = 10;
+      setCountdownState({ visible: true, countdown: count, files: selectedFiles });
+
+      const timerId = setInterval(() => {
+        count--;
+        setCountdownState(prev => prev ? { ...prev, countdown: count } : null);
+        if (count <= 0) {
+          clearInterval(timerId);
+        }
+      }, 1000);
+
+      setCountdownState(prev => prev ? { ...prev, timerId } : null);
+      return;
+    }
+
+    // 无重要文件，直接确认删除
     Modal.confirm({
       title: `确定要删除选中的 ${selectedFiles.length} 个文件吗？`,
       content: (
         <div>
           <p>文件将移至回收站，总计 {formatSize(selectedFiles.reduce((s, f) => s + f.size, 0))}</p>
-          <ul style={{ maxHeight: 200, overflow: 'auto', paddingLeft: 20 }}>
-            {selectedFiles.slice(0, 20).map((f) => (
-              <li key={f.id}>{f.name} ({formatSize(f.size)})</li>
-            ))}
-            {selectedFiles.length > 20 && <li>...及其他 {selectedFiles.length - 20} 个文件</li>}
-          </ul>
         </div>
       ),
       okText: '确认删除',
       okType: 'primary',
       cancelText: '取消',
-      onOk: async () => {
-        if (!window.electronAPI) return;
-        try {
-          const result = await window.electronAPI.executeClean(selectedFiles);
-          message.success(`已删除 ${result.itemCount} 个文件，释放 ${formatSize(result.freedBytes)}`);
-          setFiles((prev) => prev.filter((f) => !selectedIds.has(f.id)));
-          setSelectedIds(new Set());
-        } catch {
-          message.error('删除失败');
-        }
-      },
+      onOk: () => doDelete(selectedFiles),
     });
+  };
+
+  const doDelete = async (targetFiles: ScanItem[]) => {
+    if (!window.electronAPI) return;
+    // 关闭倒计时弹窗
+    setCountdownState(null);
+    try {
+      const result = await window.electronAPI.executeClean(targetFiles);
+      message.success(`已删除 ${result.itemCount} 个文件，释放 ${formatSize(result.freedBytes)}`);
+      setFiles((prev) => prev.filter((f) => !targetFiles.some(t => t.id === f.id)));
+      setSelectedIds(new Set());
+    } catch {
+      message.error('删除失败');
+    }
+  };
+
+  const handleCancelDelete = () => {
+    if (countdownState?.timerId) {
+      clearInterval(countdownState.timerId);
+    }
+    setCountdownState(null);
   };
 
   const handleSingleAnalysis = async (item: ScanItem) => {
@@ -171,10 +247,17 @@ export default function LargeFiles() {
       key: 'name',
       ellipsis: true,
       render: (name: string) => (
-        <span>
-          <Tag>{name.split('.').pop()}</Tag> {name}
-        </span>
+        <span title={name}>{name}</span>
       ),
+    },
+    {
+      title: '类型',
+      key: 'ext',
+      width: 90,
+      render: (_: unknown, record: ScanItem) => {
+        const ext = record.name.split('.').pop()?.toLowerCase() || '?';
+        return <Tag color={getExtColor(ext)}>{ext}</Tag>;
+      },
     },
     { title: '路径', dataIndex: 'path', key: 'path', ellipsis: true },
     {
@@ -184,6 +267,15 @@ export default function LargeFiles() {
       render: (v: number) => <strong>{formatSize(v)}</strong>,
       sorter: (a, b) => a.size - b.size,
       defaultSortOrder: 'descend',
+    },
+    {
+      title: '安全等级',
+      key: 'safety',
+      width: 100,
+      render: (_: unknown, record: ScanItem) => {
+        const st = SAFETY_TAGS[record.safety] || { text: '未知', color: 'default' };
+        return <Tag color={st.color}>{st.text}</Tag>;
+      },
     },
     {
       title: 'AI 建议',
@@ -320,6 +412,96 @@ export default function LargeFiles() {
           </Button>
         </div>
       )}
+
+      {/* 重要文件删除倒计时弹窗 */}
+      <Modal
+        title={
+          <Space>
+            <WarningOutlined style={{ color: '#ff4d4f' }} />
+            检测到重要文件，请仔细确认
+          </Space>
+        }
+        open={!!countdownState?.visible}
+        onCancel={handleCancelDelete}
+        footer={
+          <Space>
+            <Button onClick={handleCancelDelete}>取消删除</Button>
+            <Button
+              danger
+              type="primary"
+              disabled={(countdownState?.countdown ?? 1) > 0}
+              onClick={() => doDelete(countdownState!.files)}
+            >
+              {countdownState && countdownState.countdown > 0
+                ? `确认删除 (${countdownState.countdown}s)`
+                : '确认删除'}
+            </Button>
+          </Space>
+        }
+        width={560}
+      >
+        <div style={{ padding: '8px 0' }}>
+          <Text type="danger" strong style={{ fontSize: 15 }}>
+            以下重要文件不建议删除，否则可能导致程序运行异常或数据丢失！
+          </Text>
+
+          {countdownState && countdownState.countdown > 0 && (
+            <div
+              style={{
+                textAlign: 'center',
+                margin: '16px 0',
+                padding: 12,
+                background: '#fff2f0',
+                borderRadius: 8,
+                border: '1px solid #ffccc7',
+              }}
+            >
+              <Text style={{ fontSize: 36, fontWeight: 700, color: '#ff4d4f' }}>
+                {countdownState.countdown}
+              </Text>
+              <Text type="secondary" style={{ display: 'block', fontSize: 12 }}>
+                秒后可确认删除
+              </Text>
+            </div>
+          )}
+
+          <div
+            style={{
+              maxHeight: 240,
+              overflow: 'auto',
+              marginTop: 12,
+              border: '1px solid #ffccc7',
+              borderRadius: 6,
+              padding: '8px 12px',
+              background: '#fff',
+            }}
+          >
+            {countdownState?.files.filter(isImportantFile).map(f => (
+              <div
+                key={f.id}
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '6px 0',
+                  borderBottom: '1px solid #f5f5f5',
+                }}
+              >
+                <Space>
+                  <Tag color="red" style={{ marginRight: 4 }}>重要</Tag>
+                  <Text style={{ fontSize: 13 }}>{f.name}</Text>
+                </Space>
+                <Text type="secondary" style={{ fontSize: 12 }}>{formatSize(f.size)}</Text>
+              </div>
+            ))}
+            {countdownState && countdownState.files.filter(f => !isImportantFile(f)).length > 0 && (
+              <div style={{ padding: '8px 0', color: '#8c8c8c', fontSize: 12 }}>
+                另有 {countdownState.files.filter(f => !isImportantFile(f)).length} 个安全文件
+              </div>
+            )}
+          </div>
+        </div>
+      </Modal>
 
       {/* AI 分析详情弹窗 */}
       <Modal
