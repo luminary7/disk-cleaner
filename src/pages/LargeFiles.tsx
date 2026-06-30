@@ -97,6 +97,7 @@ export default function LargeFiles() {
   const [analyzingFileId, setAnalyzingFileId] = useState<string | null>(null);
   const [viewingFileId, setViewingFileId] = useState<string | null>(null);
 
+  const [pageSize, setPageSize] = useState(20);
   const [showDriveSelect, setShowDriveSelect] = useState(false);
 
   // 倒计时删除确认
@@ -442,11 +443,31 @@ export default function LargeFiles() {
         </Card>
       ) : (
         <Card>
+          {files.length > 0 && (
+            <div style={{
+              marginBottom: 16,
+              padding: '10px 16px',
+              background: '#fffbe6',
+              border: '1px solid #ffe58f',
+              borderRadius: 8,
+              fontSize: 13,
+              color: '#ad8b00',
+              lineHeight: 1.6,
+            }}>
+              ⚠ 大文件删除后请确认不影响正在使用的程序。如不确定文件用途，建议先搜索确认。
+            </div>
+          )}
           <Table
           dataSource={filteredFiles}
           columns={columns}
           rowKey="id"
-          pagination={{ pageSize: 20 }}
+          pagination={{
+            pageSize: pageSize,
+            showSizeChanger: true,
+            pageSizeOptions: ['10', '20', '50', '100'],
+            onShowSizeChange: (_current, size) => setPageSize(size),
+            showTotal: (total, range) => `第 ${range[0]}-${range[1]} 条，共 ${total} 条`,
+          }}
           size="small"
           rowSelection={{
             selectedRowKeys: Array.from(selectedIds),
@@ -462,14 +483,6 @@ export default function LargeFiles() {
           }}
         />
       </Card>
-      )}
-
-      {files.length > 0 && (
-        <Card style={{ marginTop: 16, background: '#fffbe6' }}>
-          <Typography.Text type="warning">
-            ⚠ 大文件删除后请确认不影响正在使用的程序。如不确定文件用途，建议先搜索确认。
-          </Typography.Text>
-        </Card>
       )}
 
       {/* 开发辅助：重载窗口（修改 electron/ 下文件后点击，替代重启） */}

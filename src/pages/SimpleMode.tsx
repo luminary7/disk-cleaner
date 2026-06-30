@@ -235,16 +235,6 @@ export default function SimpleMode({ onSwitchToAdvanced }: Props) {
   // ============================
   // 处理函数
   // ============================
-  const handleScan = useCallback(() => {
-    if (!window.electronAPI) {
-      setErrorMsg('未检测到 Electron 环境。请使用 npm run electron:dev 启动应用，而非 npm run dev。');
-      setPhase('error');
-      return;
-    }
-    // 先弹出盘符选择弹窗
-    setShowDriveSelect(true);
-  }, []);
-
   const handleStartScanWithDrives = useCallback(async (drives: string[]) => {
     setShowDriveSelect(false);
     setErrorMsg('');
@@ -261,6 +251,16 @@ export default function SimpleMode({ onSwitchToAdvanced }: Props) {
       setPhase('error');
     }
   }, []);
+
+  const handleScan = useCallback(() => {
+    if (!window.electronAPI) {
+      setErrorMsg('未检测到 Electron 环境。请使用 npm run electron:dev 启动应用，而非 npm run dev。');
+      setPhase('error');
+      return;
+    }
+    // 极简模式默认扫描 C 盘，跳过盘符选择
+    handleStartScanWithDrives(['C:\\']);
+  }, [handleStartScanWithDrives]);
 
   const handleCleanAll = useCallback(async () => {
     if (!window.electronAPI) return;

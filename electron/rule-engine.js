@@ -65,11 +65,8 @@ function evaluate(filePath, size, category, extra = {}) {
 }
 
 function evaluateTemp(extra) {
-  // 临时文件：24小时前的可以安全清理
-  const ageHours = getAgeHours(extra.mtimeMs);
-  if (ageHours > 24) return 'safe';
-  if (ageHours > 1) return 'caution';
-  return 'caution';
+  // 临时文件目录可以直接清，不设时间门槛
+  return 'safe';
 }
 
 function evaluateBrowser(extra) {

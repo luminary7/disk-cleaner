@@ -121,24 +121,41 @@ function registerIPC() {
     return drives;
   });
 
-  // ========= 清理 =========
+  // ========= 清理（并发池，50 条同时移动）=========
   ipcMain.handle('clean:execute', async (_event, items) => {
-    const results = await fileOperator.moveBatchToTrash(items);
+    const total = items.length;
+    const CONCURRENCY = 200;
+    const results = new Array(total);
+    let completed = 0;
+    let nextIdx = 0;
+
+    async function worker() {
+      while (true) {
+        const idx = nextIdx++;
+        if (idx >= total) break;
+        const item = items[idx];
+        const r = await fileOperator.moveToTrash(item.path);
+        results[idx] = { ...item, success: r.success, error: r.error };
+        completed++;
+        // 每完成 50 条或最后一批时上报进度
+        if (completed % CONCURRENCY === 0 || completed === total) {
+          mainWindow?.webContents.send('clean:progress', {
+            current: completed,
+            total,
+            currentItem: item.name || '',
+          });
+        }
+      }
+    }
+
+    const poolSize = Math.min(CONCURRENCY, total);
+    const workers = Array.from({ length: poolSize }, () => worker());
+    await Promise.all(workers);
+
     const successCount = results.filter((r) => r.success).length;
     const freedBytes = results
       .filter((r) => r.success)
       .reduce((sum, r) => sum + (r.size || 0), 0);
-
-    // 进度上报
-    let completed = 0;
-    for (const r of results) {
-      completed++;
-      mainWindow?.webContents.send('clean:progress', {
-        current: completed,
-        total: results.length,
-        currentItem: r.name || '',
-      });
-    }
 
     mainWindow?.webContents.send('clean:complete', {
       itemCount: successCount,

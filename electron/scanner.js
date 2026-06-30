@@ -81,24 +81,47 @@ async function startScan(onProgress, drives = ['C:\\']) {
   const allItems = [];
   let totalSize = 0;
 
-  // 收集 SCAN_TARGETS 模板路径（原始 C: 基路径）
-  const templates = [];
-  for (const target of SCAN_TARGETS) {
-    for (const p of target.paths()) {
-      if (p) templates.push({ ...target, originalPath: p });
-    }
-  }
+  // 系统盘符（通常为 C:\）
+  const systemDrive = (process.env.SystemDrive || 'C:') + '\\';
 
-  // 为每个盘符自适应路径，只保留存在的
+  // 构建扫描目标列表
   const targets = [];
+
   for (const drive of drives) {
     const dl = drive.replace(':\\', '');
-    for (const tpl of templates) {
-      const adaptedPath = tpl.originalPath.replace(/^[A-Z]:\\/i, drive);
-      try {
-        await fsp.access(adaptedPath);
-        targets.push({ ...tpl, resolvedPath: adaptedPath, driveLetter: dl });
-      } catch { /* 该盘符下此路径不存在，跳过 */ }
+    const isSystemDrive = drive.toUpperCase() === systemDrive.toUpperCase();
+
+    if (isSystemDrive) {
+      // 系统盘：使用原有的标准扫描路径（无需盘符替换）
+      for (const target of SCAN_TARGETS) {
+        for (const p of target.paths()) {
+          if (!p) continue;
+          try {
+            await fsp.access(p);
+            targets.push({ ...target, resolvedPath: p, driveLetter: dl });
+          } catch { /* 路径不存在，跳过 */ }
+        }
+      }
+    } else {
+      // 非系统盘：扫描根目录下的常见临时/缓存目录
+      const commonDirs = [
+        { name: 'Temp', category: 'temp' },
+        { name: 'Tmp', category: 'temp' },
+        { name: 'Cache', category: 'app' },
+        { name: 'Logs', category: 'app' },
+      ];
+      for (const dir of commonDirs) {
+        const dirPath = path.join(drive, dir.name);
+        try {
+          await fsp.access(dirPath);
+          targets.push({
+            category: dir.category,
+            name: `${dl}盘 ${dir.name}`,
+            resolvedPath: dirPath,
+            driveLetter: dl,
+          });
+        } catch { /* 该目录在该盘符下不存在 */ }
+      }
     }
   }
 
