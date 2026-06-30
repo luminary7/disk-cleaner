@@ -26,11 +26,13 @@ function formatSize(bytes: number): string {
   return bytes + ' B';
 }
 
-function getFileExt(name: string): string {
-  const idx = name.lastIndexOf('.');
-  if (idx === -1) return '?';
-  return name.slice(idx + 1).toLowerCase();
-}
+const CATEGORY_CONFIG: Record<string, { label: string; color: string }> = {
+  temp: { label: '临时缓存', color: '#faad14' },
+  browser: { label: '浏览器缓存', color: '#1677ff' },
+  app: { label: '应用数据', color: '#52c41a' },
+  system: { label: '系统文件', color: '#ff4d4f' },
+  'large-file': { label: '大文件', color: '#722ed1' },
+};
 
 const SAFETY_STYLE: Record<string, { text: string; color: string; icon: React.ReactNode }> = {
   safe: {
@@ -89,12 +91,14 @@ export default function SimpleMode({ onSwitchToAdvanced }: Props) {
   const hasMore = visibleCount < sortedItems.length;
   const totalItemCount = sortedItems.length;
 
-  const { allDeletableSize, safeDeletableSize } = useMemo(() => {
+  const { allDeletableSize, safeDeletableSize, keptCount } = useMemo(() => {
     const allDel = allScanItems.filter(i => i.safety !== 'keep');
     const safeDel = allScanItems.filter(i => i.safety === 'safe');
+    const kept = allScanItems.filter(i => i.safety === 'keep');
     return {
       allDeletableSize: allDel.reduce((s, i) => s + i.size, 0),
       safeDeletableSize: safeDel.reduce((s, i) => s + i.size, 0),
+      keptCount: kept.length,
     };
   }, [allScanItems]);
 
@@ -275,8 +279,8 @@ export default function SimpleMode({ onSwitchToAdvanced }: Props) {
   // 渲染: 文件列表项
   // ============================
   const renderFileItem = (item: ScanItem) => {
-    const ext = getFileExt(item.name);
     const safety = SAFETY_STYLE[item.safety];
+    const cat = CATEGORY_CONFIG[item.category] || { label: item.category, color: '#8c8c8c' };
     return (
       <div
         key={item.id}
@@ -313,14 +317,15 @@ export default function SimpleMode({ onSwitchToAdvanced }: Props) {
           <span
             style={{
               fontSize: 11,
-              color: '#8c8c8c',
-              background: '#f5f5f5',
-              padding: '1px 6px',
+              color: cat.color,
+              background: `${cat.color}15`,
+              padding: '2px 8px',
               borderRadius: 4,
-              fontFamily: 'monospace',
+              fontWeight: 500,
+              whiteSpace: 'nowrap',
             }}
           >
-            .{ext}
+            {cat.label}
           </span>
           <Text style={{ fontSize: 13, fontWeight: 500, color: '#595959', minWidth: 60, textAlign: 'right' }}>
             {formatSize(item.size)}
@@ -546,10 +551,11 @@ export default function SimpleMode({ onSwitchToAdvanced }: Props) {
               strong
               style={{ fontSize: 22, color: '#1677ff', margin: '8px 0 2px' }}
             >
-              {formatSize(totalScanSize)}
+              {formatSize(allDeletableSize)}
             </Text>
             <Text type="secondary" style={{ fontSize: 13, marginBottom: 20 }}>
-              共 {totalItemCount} 项可清理
+              共 {totalItemCount - keptCount} 项可清理
+              {keptCount > 0 && <> · {keptCount} 项系统文件已排除</>}
             </Text>
 
             <div ref={cleanButtonsRef} style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 10 }}>
