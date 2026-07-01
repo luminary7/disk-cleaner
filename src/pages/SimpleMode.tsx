@@ -15,7 +15,7 @@ import {
 import gsap from 'gsap';
 import ParticleBackground from '../components/ParticleBackground';
 import DriveSelectModal from '../components/DriveSelectModal';
-import logoImg from '../assets/logo.png';
+import logoImg from '../assets/bqb/red-face.png';
 import scanStateImg from '../assets/ui-kit/scan-state.png';
 import safeCleanImg from '../assets/ui-kit/safe-clean.png';
 import cautionProtectImg from '../assets/ui-kit/caution-protect.png';
