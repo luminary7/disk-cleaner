@@ -1,6 +1,6 @@
 {
 	"name": "no-red-disk",
-	"version": "1.1.0",
+	"version": "1.2.0",
 	"description": "我的磁盘怎么红红的，是要谈恋爱了吗",
 	"main": "electron/main.js",
 	"scripts": {
