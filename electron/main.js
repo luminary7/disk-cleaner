@@ -27,7 +27,7 @@ function createWindow() {
     height: 750,
     minWidth: 800,
     minHeight: 600,
-    title: '不许红',
+    title: '我的磁盘怎么红红的，是要谈恋爱了吗',
     icon: path.join(__dirname, isDev ? '../public/icon.png' : '../dist/icon.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -371,7 +371,7 @@ function registerIPC() {
   ipcMain.handle('app:info', async () => {
     const pkg = require(path.join(__dirname, '..', 'package.json'));
     return {
-      appName: pkg.build?.productName || '不许红',
+      appName: pkg.build?.productName || '我的磁盘怎么红红的，是要谈恋爱了吗',
       version: app.getVersion(),
       description: pkg.description || '',
       electron: process.versions.electron,

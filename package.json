@@ -1,7 +1,7 @@
 {
 	"name": "no-red-disk",
 	"version": "1.1.0",
-	"description": "不许红 — 不让你的磁盘变红爆满",
+	"description": "我的磁盘怎么红红的，是要谈恋爱了吗",
 	"main": "electron/main.js",
 	"scripts": {
 		"dev": "vite",
@@ -13,7 +13,7 @@
 	},
 	"build": {
 		"appId": "com.cdrive.cleaner",
-		"productName": "不许红",
+		"productName": "我的磁盘怎么红红的，是要谈恋爱了吗",
 		"electronDist": "node_modules/electron/dist",
 		"directories": {
 			"output": "release"
@@ -38,7 +38,7 @@
 			"oneClick": false,
 			"allowToChangeInstallationDirectory": true,
 			"createDesktopShortcut": true,
-			"shortcutName": "不许红"
+			"shortcutName": "我的磁盘怎么红红的，是要谈恋爱了吗"
 		}
 	},
 	"keywords": [
