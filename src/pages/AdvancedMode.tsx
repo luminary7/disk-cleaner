@@ -8,6 +8,7 @@ import {
   InfoCircleOutlined,
   ArrowLeftOutlined,
   AuditOutlined,
+  ReadOutlined,
 } from '@ant-design/icons';
 import SpaceOverview from './SpaceOverview';
 import CleanItems from './CleanItems';
@@ -17,10 +18,11 @@ import AIConfigPage from './AIConfigPage';
 import SettingsPage from './SettingsPage';
 import ScanRules from './ScanRules';
 import About from './About';
+import Changelog from './Changelog';
 
 const { Sider, Content } = Layout;
 
-type TabKey = 'overview' | 'clean-items' | 'large-files' | 'ai-chat' | 'ai-config' | 'settings' | 'scan-rules' | 'about';
+type TabKey = 'overview' | 'clean-items' | 'large-files' | 'ai-chat' | 'ai-config' | 'settings' | 'scan-rules' | 'changelog' | 'about';
 
 interface Props {
   onSwitchToSimple: () => void;
@@ -32,6 +34,7 @@ const menuItems = [
   { key: 'large-files', icon: <FileSearchOutlined />, label: '大文件分析' },
   { key: 'scan-rules', icon: <AuditOutlined />, label: '扫描规则' },
   { key: 'ai-chat', icon: <RobotOutlined />, label: 'AI 助手' },
+  { key: 'changelog', icon: <ReadOutlined />, label: '更新看板' },
   { key: 'about', icon: <InfoCircleOutlined />, label: '关于' },
 ];
 
@@ -47,6 +50,7 @@ export default function AdvancedMode({ onSwitchToSimple }: Props) {
       'large-files': <LargeFiles />,
       'scan-rules': <ScanRules />,
       'ai-chat': <AIAssistant />,
+      'changelog': <Changelog />,
       'about': <About />,
     };
     return (

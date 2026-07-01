@@ -326,11 +326,13 @@ export default function LargeFiles() {
 
     setBatchProgress({ current: 0, total: batchSize, currentItem: `准备分析 0/${batchSize}` });
 
-    try {
-      for (let i = 0; i < batchSize; i++) {
-        const file = batch[i];
-        setBatchProgress({ current: i + 1, total: batchSize, currentItem: `正在分析 ${i + 1}/${batchSize}: ${file.name}` });
+    let analyzedCount = 0;
 
+    for (let i = 0; i < batchSize; i++) {
+      const file = batch[i];
+      setBatchProgress({ current: i + 1, total: batchSize, currentItem: `正在分析 ${i + 1}/${batchSize}: ${file.name}` });
+
+      try {
         const result = await window.electronAPI.analyzeSingleFile(file);
 
         // 存入 singleAnalysisMap（供 AI 建议详情弹窗使用）
@@ -346,18 +348,44 @@ export default function LargeFiles() {
           next.set(file.id, mapToAISafety(result));
           return next;
         });
-      }
 
-      if (remaining > 0) {
-        message.success(`已分析 ${batchSize} 个文件，剩余 ${remaining} 个未评估`);
-      } else {
-        message.success(`AI 评估完成，共分析 ${total} 个文件`);
+        analyzedCount++;
+      } catch {
+        // 分析失败重试最多 2 次（共 3 次）
+        let retrySuccess = false;
+        for (let r = 0; r < 2; r++) {
+          setBatchProgress({ current: i + 1, total: batchSize, currentItem: `正在分析 ${i + 1}/${batchSize}: ${file.name}（重试 ${r + 1}/2）` });
+          try {
+            const retryResult = await window.electronAPI.analyzeSingleFile(file);
+            setSingleAnalysisMap(prev => {
+              const next = new Map(prev);
+              next.set(file.id, retryResult);
+              return next;
+            });
+            setAiSafetyMap(prev => {
+              const next = new Map(prev);
+              next.set(file.id, mapToAISafety(retryResult));
+              return next;
+            });
+            analyzedCount++;
+            retrySuccess = true;
+            break;
+          } catch {
+            // 继续重试
+          }
+        }
+        if (!retrySuccess) {
+          // 三次均失败，跳过该文件
+        }
       }
-    } catch (err: any) {
-      message.error(`AI 评估失败: ${cleanAIError(err)}`);
-    } finally {
-      setBatchProgress(null);
     }
+
+    if (remaining > 0) {
+      message.success(`已分析 ${analyzedCount} 个文件，剩余 ${remaining} 个未评估`);
+    } else {
+      message.success(`AI 评估完成，共分析 ${analyzedCount} 个文件`);
+    }
+    setBatchProgress(null);
   }, [files, aiSafetyMap, loading]);
 
   // 检查 AI 是否已配置

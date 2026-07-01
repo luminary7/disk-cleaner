@@ -23,6 +23,7 @@ import {
   PlusOutlined,
   CheckCircleFilled,
   DeleteOutlined,
+  EditOutlined,
   LinkOutlined,
 } from '@ant-design/icons';
 import { PRESET_PROVIDERS } from '../shared/provider-config';
@@ -51,6 +52,7 @@ export default function AIAssistant() {
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [saving, setSaving] = useState(false);
   const [presetName, setPresetName] = useState('');
+  const [editingPreset, setEditingPreset] = useState<AIPreset | null>(null);
 
   useEffect(() => {
     loadPresets();
@@ -130,6 +132,7 @@ export default function AIAssistant() {
   const handleSave = async () => {
     if (!window.electronAPI) return;
     if (!apiKey) { message.warning('请输入 API Key'); return; }
+    if (!presetName.trim()) { message.warning('请输入预设名称'); return; }
     setSaving(true);
     try {
       const config = {
@@ -139,16 +142,23 @@ export default function AIAssistant() {
         apiKey,
         model,
       };
-      await window.electronAPI.saveAIConfig(config);
-      // 同时保存为预设
-      if (presetName.trim()) {
-        await window.electronAPI.saveAIPreset({ name: presetName.trim(), ...config });
+      // 编辑模式：若名称已修改，先删除旧预设
+      if (editingPreset && presetName.trim() !== editingPreset.name) {
+        await window.electronAPI.deleteAIPreset(editingPreset.name);
+        if (activePresetName === editingPreset.name) {
+          setActivePresetName('');
+        }
       }
-      message.success('配置已保存');
+      await window.electronAPI.saveAIPreset({ name: presetName.trim(), ...config });
+      // 非编辑模式（新增）才自动切换为当前配置
+      if (!editingPreset) {
+        await window.electronAPI.saveAIConfig(config);
+        setAiEnabled(true);
+      }
+      message.success(editingPreset ? '预设已更新' : '配置已保存');
       setModalOpen(false);
       await loadPresets();
       await loadActivePreset();
-      setAiEnabled(true);
       resetForm();
     } catch {
       message.error('保存失败');
@@ -201,10 +211,25 @@ export default function AIAssistant() {
     setApiKey('');
     setTestResult(null);
     setPresetName('');
+    setEditingPreset(null);
   };
 
   const openAddModal = () => {
     resetForm();
+    setModalOpen(true);
+  };
+
+  const openEditModal = (preset: AIPreset) => {
+    setEditingPreset(preset);
+    setMode(preset.mode as 'preset' | 'custom');
+    if (preset.provider && preset.provider in PRESET_PROVIDERS) {
+      setProvider(preset.provider as PresetProvider);
+    }
+    setEndpoint(preset.endpoint || '');
+    setModel(preset.model || '');
+    setApiKey(preset.apiKey || '');
+    setPresetName(preset.name);
+    setTestResult(null);
     setModalOpen(true);
   };
 
@@ -290,6 +315,9 @@ export default function AIAssistant() {
                           启用
                         </Button>
                       )}
+                      <Button size="small" icon={<EditOutlined />} onClick={() => openEditModal(item)}>
+                        编辑
+                      </Button>
                       <Popconfirm title="确定删除此预设？" onConfirm={() => handleDeletePreset(item.name)}>
                         <Button size="small" danger icon={<DeleteOutlined />}>删除</Button>
                       </Popconfirm>
@@ -327,7 +355,7 @@ export default function AIAssistant() {
 
       {/* 添加/编辑 API 配置弹窗 */}
       <Modal
-        title="配置 API"
+        title={editingPreset ? '编辑 API 配置' : '添加 API 配置'}
         open={modalOpen}
         onCancel={() => setModalOpen(false)}
         footer={null}
