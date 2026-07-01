@@ -37,7 +37,7 @@
 		"nsis": {
 			"oneClick": false,
 			"allowToChangeInstallationDirectory": true,
-			"createDesktopShortcut": true,
+			"createDesktopShortcut": "always",
 			"shortcutName": "我的磁盘怎么红红的，是要谈恋爱了吗"
 		}
 	},

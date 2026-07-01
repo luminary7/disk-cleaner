@@ -12,14 +12,14 @@ interface DriveSelectModalProps {
 
 export default function DriveSelectModal({ open, onConfirm, onCancel }: DriveSelectModalProps) {
   const [drives, setDrives] = useState<DriveInfo[]>([]);
-  const [selected, setSelected] = useState<string[]>(['C:']);
+  const [selected, setSelected] = useState<string[]>(['C']);
   const [loading, setLoading] = useState(false);
 
   // 打开弹窗时检测盘符
   useEffect(() => {
     if (!open) return;
     setLoading(true);
-    setSelected(['C:']);
+    setSelected(['C']);
     (window.electronAPI?.detectDrives() ?? Promise.resolve([]))
       .then((list) => {
         setDrives(list);

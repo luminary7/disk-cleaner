@@ -10,6 +10,7 @@ import {
 } from '@ant-design/icons';
 import gsap from 'gsap';
 import FloatingLines from '../components/FloatingLines';
+import DriveSelectModal from '../components/DriveSelectModal';
 import tempCacheImg from '../assets/ui-kit/temp-cache.png';
 import browserCacheImg from '../assets/ui-kit/browser-cache.png';
 import appCacheImg from '../assets/ui-kit/app-cache.png';
@@ -116,6 +117,7 @@ export default function SpaceOverview() {
   const [categories, setCategories] = useState<CategoryStat[]>([]);
   const [topItems, setTopItems] = useState<ScanItem[]>([]);
   const [drives, setDrives] = useState<DriveInfo[]>([]);
+  const [showDriveSelect, setShowDriveSelect] = useState(false);
   const emptyRef = useRef<HTMLDivElement>(null);
 
   // 组件挂载时自动检测盘符
@@ -142,15 +144,25 @@ export default function SpaceOverview() {
   const totalCount = useMemo(() => categories.reduce((sum, c) => sum + c.count, 0), [categories]);
   const leadingCategories = categories.slice(0, 2);
 
-  const handleScan = async () => {
+  const handleScan = () => {
+    setShowDriveSelect(true);
+  };
+
+  const handleStartScanWithDrives = async (drives: string[]) => {
+    setShowDriveSelect(false);
     if (!window.electronAPI) return;
     setLoading(true);
     try {
-      const result = await window.electronAPI.startScan();
+      const result = await window.electronAPI.startScan(drives);
       processResult(result);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleReselectDrive = () => {
+    setCategories([]);
+    setTopItems([]);
   };
 
   const handleScanWithDrive = async (letter: string) => {
@@ -385,9 +397,16 @@ export default function SpaceOverview() {
             </Text>
           )}
         </div>
-        <Button type="primary" icon={<ScanOutlined />} onClick={handleScan} loading={loading}>
-          扫描C盘
-        </Button>
+        <Space>
+          {categories.length > 0 && !loading && (
+            <Button icon={<ScanOutlined />} onClick={handleReselectDrive}>
+              重新选择盘符
+            </Button>
+          )}
+          <Button type="primary" icon={<ScanOutlined />} onClick={handleScan} loading={loading}>
+            {categories.length === 0 ? '选择盘符扫描' : '重新扫描'}
+          </Button>
+        </Space>
       </Row>
 
       {categories.length === 0 && !loading && (
@@ -661,6 +680,12 @@ export default function SpaceOverview() {
           </Card>
         </>
       )}
+      {/* 盘符选择弹窗 */}
+      <DriveSelectModal
+        open={showDriveSelect}
+        onConfirm={handleStartScanWithDrives}
+        onCancel={() => setShowDriveSelect(false)}
+      />
     </div>
   );
 }

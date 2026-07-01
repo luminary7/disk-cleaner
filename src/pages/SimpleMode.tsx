@@ -270,9 +270,8 @@ export default function SimpleMode({ onSwitchToAdvanced }: Props) {
       setPhase('error');
       return;
     }
-    // 极简模式默认扫描 C 盘，跳过盘符选择
-    handleStartScanWithDrives(['C:\\']);
-  }, [handleStartScanWithDrives]);
+    setShowDriveSelect(true);
+  }, []);
 
   const handleCleanAll = useCallback(async () => {
     if (!window.electronAPI) return;
@@ -598,9 +597,6 @@ export default function SimpleMode({ onSwitchToAdvanced }: Props) {
           }}
         >
           <div ref={idleContentRef} style={{ textAlign: 'center' }}>
-            <div style={{ marginBottom: 12 }}>
-              <img src={logoImg} alt="我的磁盘怎么红红的，是要谈恋爱了吗" style={{ width: 80, height: 80 }} />
-            </div>
             <Title level={2} style={{ margin: '8px 0 4px' }}>我的磁盘怎么红红的，是要谈恋爱了吗</Title>
             <Text type="secondary" style={{ fontSize: 15, display: 'block', marginBottom: 24 }}>
               一键扫描并安全清理磁盘垃圾文件

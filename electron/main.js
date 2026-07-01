@@ -115,12 +115,13 @@ function registerIPC() {
         await fs.promises.access(root);
         let label = '';
         try {
+          // chcp 65001 切换到 UTF-8 代码页，解决中文盘符名乱码
           const output = execSync(
-            `wmic logicaldisk where name="${letter}:" get volumename /format:value`,
+            `chcp 65001 > nul & wmic logicaldisk where name="${letter}:" get volumename /format:value`,
             { encoding: 'utf8', timeout: 2000 }
           );
           const match = output.match(/VolumeName=(.+)/);
-          label = match ? match[1].trim() : '';
+          label = match ? match[1].replace(/\r/g, '').trim() : '';
         } catch { /* volume label not available */ }
         drives.push({ letter, label, path: root });
       } catch { /* drive not accessible */ }

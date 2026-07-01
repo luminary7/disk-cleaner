@@ -179,9 +179,7 @@ export default function LargeFiles() {
   }, [files, aiSafetyMap]);
 
   const handleScan = () => {
-    if (!window.electronAPI) return;
-    // 默认扫描 C 盘，跳过盘符选择
-    handleStartScanWithDrives(['C:\\']);
+    setShowDriveSelect(true);
   };
 
   const loadAnalysisCache = async (scanFiles?: ScanItem[]) => {
