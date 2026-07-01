@@ -369,7 +369,10 @@ function registerIPC() {
 
   // ========= 应用信息 =========
   ipcMain.handle('app:info', async () => {
-    const pkg = require(path.join(__dirname, '..', 'package.json'));
+    // 每次清除 require 缓存以读取最新的 package.json
+    const pkgPath = path.join(__dirname, '..', 'package.json');
+    delete require.cache[require.resolve(pkgPath)];
+    const pkg = require(pkgPath);
     return {
       appName: pkg.build?.productName || '我的磁盘怎么红红的，是要谈恋爱了吗',
       version: app.getVersion(),
