@@ -101,13 +101,15 @@ export default function SimpleMode({ onSwitchToAdvanced }: Props) {
   const hasMore = visibleCount < sortedItems.length;
   const totalItemCount = sortedItems.length;
 
-  const { allDeletableSize, safeDeletableSize, keptCount } = useMemo(() => {
-    const allDel = allScanItems.filter(i => i.safety !== 'keep');
+  const { safeDeletableSize, safeCount, cautionSize, cautionCount, keptCount } = useMemo(() => {
     const safeDel = allScanItems.filter(i => i.safety === 'safe');
+    const cautionItems = allScanItems.filter(i => i.safety === 'caution');
     const kept = allScanItems.filter(i => i.safety === 'keep');
     return {
-      allDeletableSize: allDel.reduce((s, i) => s + i.size, 0),
       safeDeletableSize: safeDel.reduce((s, i) => s + i.size, 0),
+      safeCount: safeDel.length,
+      cautionSize: cautionItems.reduce((s, i) => s + i.size, 0),
+      cautionCount: cautionItems.length,
       keptCount: kept.length,
     };
   }, [allScanItems]);
@@ -273,29 +275,6 @@ export default function SimpleMode({ onSwitchToAdvanced }: Props) {
 
   const handleCleanAll = useCallback(async () => {
     if (!window.electronAPI) return;
-    const items = allScanItems.filter(i => i.safety !== 'keep');
-    if (items.length === 0) return;
-    setPhase('cleaning');
-    setRestoreResult(null);
-    setRestoreProgress({ current: 0, total: 0, itemName: '' });
-    pendingRestoreRef.current = [];
-    try {
-      const result = (await window.electronAPI.executeClean(items)) as any;
-      if (result.cancelled) {
-        pendingRestoreRef.current = result.completedItems || [];
-        await doRestore();
-      } else {
-        setCleanResult({ freedBytes: result.freedBytes });
-        setPhase('clean-done');
-      }
-    } catch (err: any) {
-      setErrorMsg(`清理失败: ${err?.message || '未知错误'}`);
-      setPhase('error');
-    }
-  }, [allScanItems]);
-
-  const handleCleanSafe = useCallback(async () => {
-    if (!window.electronAPI) return;
     const items = allScanItems.filter(i => i.safety === 'safe');
     if (items.length === 0) return;
     setPhase('cleaning');
@@ -353,22 +332,27 @@ export default function SimpleMode({ onSwitchToAdvanced }: Props) {
   const handleCleanSingle = useCallback(async (item: ScanItem) => {
     if (!window.electronAPI) return;
 
-    // 建议保留的文件，弹窗确认
     if (item.safety === 'keep') {
+      message.warning('建议保留项目已被安全策略阻止，请不要在极简模式删除。');
+      return;
+    }
+
+    let options: CleanOptions | undefined;
+    if (item.safety === 'caution') {
       const confirmed = await new Promise<boolean>((resolve) => {
         Modal.confirm({
-          title: '确认删除系统保护文件？',
+          title: '确认清理谨慎项？',
           content: (
             <div>
-              <p style={{ color: '#ff4d4f', marginBottom: 8 }}>
-                此文件被标记为"建议保留"，删除可能导致程序运行异常或数据丢失！
+              <p style={{ color: '#faad14', marginBottom: 8 }}>
+                此文件需要人工确认，删除前请确认它不是正在使用的数据或重要文件。
               </p>
               <p style={{ fontSize: 13, color: '#595959', wordBreak: 'break-all' }}>
                 {item.path}
               </p>
             </div>
           ),
-          okText: '确认删除',
+          okText: '确认清理',
           okType: 'danger',
           cancelText: '取消',
           onOk: () => resolve(true),
@@ -376,13 +360,14 @@ export default function SimpleMode({ onSwitchToAdvanced }: Props) {
         });
       });
       if (!confirmed) return;
+      options = { allowCaution: true };
     }
 
     try {
-      const result = await window.electronAPI.cleanSingle(item);
+      const result = await window.electronAPI.cleanSingle(item, options);
       if (result.success) {
         setAllScanItems(prev => prev.filter(i => i.id !== item.id));
-        message.success(`已删除: ${item.name}`);
+        message.success(`已清理: ${item.name}`);
       } else {
         message.error(result.error || '删除失败');
       }
@@ -450,7 +435,8 @@ export default function SimpleMode({ onSwitchToAdvanced }: Props) {
             type="text"
             size="small"
             icon={<DeleteOutlined />}
-            title={item.safety === 'keep' ? '建议保留，可强制删除' : '删除此文件'}
+            title={item.safety === 'keep' ? '建议保留，已禁止清理' : item.safety === 'caution' ? '确认后清理此文件' : '清理此文件'}
+            disabled={item.safety === 'keep'}
             onClick={() => handleCleanSingle(item)}
             style={{ fontSize: 13, color: item.safety === 'keep' ? '#d9d9d9' : '#ff4d4f' }}
           />
@@ -696,10 +682,11 @@ export default function SimpleMode({ onSwitchToAdvanced }: Props) {
               strong
               style={{ fontSize: 22, color: '#1677ff', margin: '8px 0 2px' }}
             >
-              {formatSize(allDeletableSize)}
+              {formatSize(safeDeletableSize)}
             </Text>
             <Text type="secondary" style={{ fontSize: 13, marginBottom: 20 }}>
-              共 {totalItemCount - keptCount} 项可清理
+              共 {safeCount} 项可安全清理
+              {cautionCount > 0 && <> · {cautionCount} 项需确认</>}
               {keptCount > 0 && <> · {keptCount} 项系统文件已排除</>}
             </Text>
 
@@ -711,18 +698,19 @@ export default function SimpleMode({ onSwitchToAdvanced }: Props) {
                 onClick={handleCleanAll}
                 style={{ height: 48, fontSize: 15, width: '100%' }}
               >
-                全部删除 · {formatSize(allDeletableSize)}
+                安全清理 · {formatSize(safeDeletableSize)}
               </Button>
               <Button
                 size="large"
-                icon={<SafetyCertificateOutlined />}
-                onClick={handleCleanSafe}
-                style={{ height: 44, fontSize: 14, width: '100%', borderColor: '#52c41a', color: '#52c41a' }}
+                icon={<WarningOutlined />}
+                onClick={onSwitchToAdvanced}
+                disabled={cautionCount === 0}
+                style={{ height: 44, fontSize: 14, width: '100%', borderColor: '#faad14', color: '#faad14' }}
               >
-                安全删除 · {formatSize(safeDeletableSize)}
+                逐项确认谨慎项 · {formatSize(cautionSize)}
               </Button>
               <Text style={{ fontSize: 11, color: '#8c8c8c', textAlign: 'center', marginTop: 4 }}>
-                安全删除仅清理标记为"可安全删除"的项目
+                默认清理仅处理 safe 项，谨慎项需要到高级模式逐项确认
               </Text>
             </div>
 

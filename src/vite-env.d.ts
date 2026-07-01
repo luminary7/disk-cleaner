@@ -33,6 +33,16 @@ declare global {
   interface CleanResult {
     freedBytes: number;
     itemCount: number;
+    cancelled?: boolean;
+    completedItems?: ScanItem[];
+    failedCount?: number;
+    restorePoint?: { success: boolean; message: string } | null;
+    results?: Array<ScanItem & { success: boolean; error?: string }>;
+  }
+
+  interface CleanOptions {
+    allowCaution?: boolean;
+    forceKeep?: boolean;
   }
 
   interface AIConfig {
@@ -70,7 +80,7 @@ declare global {
     onScanComplete: (callback: (data: ScanResult) => void) => () => void;
     onScanError: (callback: (data: string) => void) => () => void;
 
-    executeClean: (items: ScanItem[]) => Promise<CleanResult>;
+    executeClean: (items: ScanItem[], options?: CleanOptions) => Promise<CleanResult>;
     cancelClean: () => Promise<{ cancelled: boolean }>;
     restoreItems: (items: ScanItem[]) => Promise<{ restored: number; failed: number; errors: string[] }>;
     onCleanProgress: (callback: (data: CleanProgress) => void) => () => void;
@@ -113,7 +123,7 @@ declare global {
     openExternal: (url: string) => Promise<void>;
 
     // 单文件删除
-    cleanSingle: (item: ScanItem) => Promise<ScanItem & { success: boolean; error?: string }>;
+    cleanSingle: (item: ScanItem, options?: CleanOptions) => Promise<ScanItem & { success: boolean; error?: string }>;
 
     // 打开回收站
     openRecycleBin: () => Promise<void>;

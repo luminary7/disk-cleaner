@@ -8,7 +8,8 @@
 		"build": "vite build",
 		"electron:dev": "concurrently \"cross-env BROWSER=none vite\" \"wait-on http://localhost:5173 && cross-env NODE_ENV=development electron .\"",
 		"electron:build": "npm run build && electron-builder",
-		"preview": "vite preview"
+		"preview": "vite preview",
+		"verify:rules": "node scripts/verify-rules.js"
 	},
 	"build": {
 		"appId": "com.cdrive.cleaner",

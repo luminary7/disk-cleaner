@@ -65,21 +65,29 @@ const FILE_TYPE_OPTIONS = [
   ...FILE_CATEGORIES.map(c => ({ value: c.label, label: c.label })),
 ];
 
+type SafetyLevel = ScanItem['safety'];
+
+const SAFETY_RANK: Record<SafetyLevel, number> = {
+  safe: 0,
+  caution: 1,
+  keep: 2,
+};
+
 function cleanAIError(err: any): string {
   const msg = err?.message || '';
   // IPC invoke 包装格式: "Error invoking remote method 'xxx': Error: 真实消息"
   const idx = msg.lastIndexOf('Error: ');
   return idx >= 0 ? msg.slice(idx + 7) : msg || '请检查 AI 配置';
 }
-// 判断文件是否重要（不可随意删除），综合系统与 AI 判定
-// 两者都标记为 keep 才算重要文件，任一认为可删即不算
-function isImportantFile(item: ScanItem, aiSafetyMap?: Map<string, { safety: string }>): boolean {
-  if (item.safety !== 'keep') return false;
-  if (aiSafetyMap) {
-    const ai = aiSafetyMap.get(item.id);
-    if (ai && ai.safety !== 'keep') return false;
-  }
-  return true;
+function getConservativeSafety(item: ScanItem, aiSafetyMap?: Map<string, { safety: SafetyLevel }>): SafetyLevel {
+  const ai = aiSafetyMap?.get(item.id);
+  if (!ai) return item.safety;
+  return SAFETY_RANK[ai.safety] > SAFETY_RANK[item.safety] ? ai.safety : item.safety;
+}
+
+// 判断文件是否重要（不可随意删除），系统或 AI 任一标记 keep 即保护
+function isImportantFile(item: ScanItem, aiSafetyMap?: Map<string, { safety: SafetyLevel }>): boolean {
+  return getConservativeSafety(item, aiSafetyMap) === 'keep';
 }
 
 const SAFETY_TAGS: Record<string, { text: string; color: string }> = {
@@ -147,14 +155,10 @@ export default function LargeFiles() {
     return cleanup;
   }, []);
 
-  // 文件或 AI 结果更新时自动取消勾选"两者都标记 keep"的项
+  // 文件或 AI 结果更新时自动取消勾选综合 keep 的项
   useEffect(() => {
     const combinedKeepIds = new Set(
-      files.filter(f => {
-        if (f.safety !== 'keep') return false;
-        const ai = aiSafetyMap.get(f.id);
-        return !ai || ai.safety === 'keep';
-      }).map(f => f.id)
+      files.filter(f => getConservativeSafety(f, aiSafetyMap) === 'keep').map(f => f.id)
     );
     setSelectedIds(prev => {
       let changed = false;
@@ -208,31 +212,25 @@ export default function LargeFiles() {
     const importantFiles = selectedFiles.filter(f => isImportantFile(f, aiSafetyMap));
 
     if (importantFiles.length > 0) {
-      // 10 秒倒计时警告
-      let count = 10;
-      setCountdownState({ visible: true, countdown: count, files: selectedFiles });
-
-      const timerId = setInterval(() => {
-        count--;
-        setCountdownState(prev => prev ? { ...prev, countdown: count } : null);
-        if (count <= 0) {
-          clearInterval(timerId);
-        }
-      }, 1000);
-
-      setCountdownState(prev => prev ? { ...prev, timerId } : null);
+      message.warning('选中文件中包含禁止清理项目，已被安全策略阻止');
+      setSelectedIds(prev => {
+        const next = new Set(prev);
+        importantFiles.forEach(f => next.delete(f.id));
+        return next;
+      });
       return;
     }
 
-    // 无重要文件，直接确认删除
+    const cautionCount = selectedFiles.filter(f => getConservativeSafety(f, aiSafetyMap) === 'caution').length;
     Modal.confirm({
-      title: `确定要删除选中的 ${selectedFiles.length} 个文件吗？`,
+      title: `确定要清理选中的 ${selectedFiles.length} 个文件吗？`,
       content: (
         <div>
           <p>文件将移至回收站，总计 {formatSize(selectedFiles.reduce((s, f) => s + f.size, 0))}</p>
+          {cautionCount > 0 && <p>其中 {cautionCount} 个为谨慎项，请确认文件用途后再清理。</p>}
         </div>
       ),
-      okText: '确认删除',
+      okText: '确认清理',
       okType: 'primary',
       cancelText: '取消',
       onOk: () => doDelete(selectedFiles),
@@ -243,20 +241,21 @@ export default function LargeFiles() {
     if (!window.electronAPI) return;
     // 关闭倒计时弹窗
     setCountdownState(null);
-    // 安全过滤：系统或 AI 任一认为可删即可删除
-    const cleanFiles = targetFiles.filter(f => {
-      if (f.safety !== 'keep') return true;
-      const ai = aiSafetyMap.get(f.id);
-      return ai && ai.safety !== 'keep';
-    });
+    // 安全过滤：综合 keep 永远不通过普通清理
+    const cleanFiles = targetFiles.filter(f => getConservativeSafety(f, aiSafetyMap) !== 'keep');
     if (cleanFiles.length === 0) {
-      message.warning('选中文件中无可删除项目');
+      message.warning('选中文件中无可清理项目');
       return;
     }
     try {
-      const result = await window.electronAPI.executeClean(cleanFiles);
-      message.success(`已删除 ${result.itemCount} 个文件，释放 ${formatSize(result.freedBytes)}`);
-      setFiles((prev) => prev.filter((f) => !cleanFiles.some(t => t.id === f.id)));
+      const result = await window.electronAPI.executeClean(cleanFiles, { allowCaution: true });
+      if (result.failedCount && result.failedCount > 0) {
+        message.warning(`已清理 ${result.itemCount} 个文件，${result.failedCount} 个被安全策略阻止`);
+      } else {
+        message.success(`已清理 ${result.itemCount} 个文件，释放 ${formatSize(result.freedBytes)}`);
+      }
+      const successIds = new Set((result.results || []).filter((r) => r.success).map((r) => r.id));
+      setFiles((prev) => prev.filter((f) => !successIds.has(f.id)));
       setSelectedIds(new Set());
     } catch {
       message.error('删除失败');
@@ -296,11 +295,8 @@ export default function LargeFiles() {
     }
   };
 
-  // 获取文件的有效安全等级：优先 AI 裁定，其次规则引擎
-  const getEffectiveSafety = (item: ScanItem): string => {
-    const ai = aiSafetyMap.get(item.id);
-    return ai ? ai.safety : item.safety;
-  };
+  // 获取文件的有效安全等级：系统与 AI 取更保守结果
+  const getEffectiveSafety = (item: ScanItem): SafetyLevel => getConservativeSafety(item, aiSafetyMap);
 
   const filteredFiles = files
     .filter((f) => typeFilter === 'all' || guessFileType(f.name) === typeFilter)
@@ -402,7 +398,7 @@ export default function LargeFiles() {
       key: 'safety',
       width: 100,
       render: (_: unknown, record: ScanItem) => {
-        const st = SAFETY_TAGS[record.safety] || { text: '未知', color: 'default' };
+        const st = SAFETY_TAGS[getEffectiveSafety(record)] || { text: '未知', color: 'default' };
         return <Tag color={st.color}>{st.text}</Tag>;
       },
     },
@@ -528,7 +524,7 @@ export default function LargeFiles() {
                 onClick={handleDelete}
                 disabled={selectedIds.size === 0}
               >
-                删除选中 ({selectedIds.size})
+                清理选中 ({selectedIds.size})
               </Button>
             </>
           )}
@@ -611,7 +607,7 @@ export default function LargeFiles() {
                 lineHeight: 1.6,
                 fontWeight: 500,
               }}>
-                🔴 AI 分析建议仅供参考，请务必确认无误后再删除。如误删文件，可前往回收站恢复。
+                AI 分析建议仅供参考，请务必确认文件用途后再清理。普通文件恢复以回收站为准。
               </div>
             </>
           )}
@@ -629,10 +625,15 @@ export default function LargeFiles() {
           size="small"
           rowSelection={{
             selectedRowKeys: Array.from(selectedIds),
-            onChange: (keys) => setSelectedIds(new Set(keys as string[])),
+            onChange: (keys) => {
+              const nextKeys = (keys as string[]).filter((id) => {
+                const file = files.find((f) => f.id === id);
+                return file && getEffectiveSafety(file) !== 'keep';
+              });
+              setSelectedIds(new Set(nextKeys));
+            },
             getCheckboxProps: (record: ScanItem) => ({
-              // 系统与 AI 均标记 keep（或无 AI 结果时系统标记 keep）才禁用勾选
-              disabled: record.safety === 'keep' && (!aiSafetyMap.has(record.id) || aiSafetyMap.get(record.id)!.safety === 'keep'),
+              disabled: getEffectiveSafety(record) === 'keep',
             }),
           }}
           locale={{
@@ -645,7 +646,7 @@ export default function LargeFiles() {
       )}
 
 
-      {/* 重要文件删除倒计时弹窗 */}
+      {/* 重要文件清理倒计时弹窗 */}
       <Modal
         title={
           <Space>
@@ -657,7 +658,7 @@ export default function LargeFiles() {
         onCancel={handleCancelDelete}
         footer={
           <Space>
-            <Button onClick={handleCancelDelete}>取消删除</Button>
+            <Button onClick={handleCancelDelete}>取消清理</Button>
             <Button
               danger
               type="primary"
@@ -665,8 +666,8 @@ export default function LargeFiles() {
               onClick={() => doDelete(countdownState!.files)}
             >
               {countdownState && countdownState.countdown > 0
-                ? `确认删除 (${countdownState.countdown}s)`
-                : '确认删除'}
+                ? `确认清理 (${countdownState.countdown}s)`
+                : '确认清理'}
             </Button>
           </Space>
         }
@@ -674,7 +675,7 @@ export default function LargeFiles() {
       >
         <div style={{ padding: '8px 0' }}>
           <Text type="danger" strong style={{ fontSize: 15 }}>
-            以下重要文件不建议删除，否则可能导致程序运行异常或数据丢失！
+            以下重要文件不建议清理，否则可能导致程序运行异常或数据丢失！
           </Text>
 
           {countdownState && countdownState.countdown > 0 && (
@@ -692,7 +693,7 @@ export default function LargeFiles() {
                 {countdownState.countdown}
               </Text>
               <Text type="secondary" style={{ display: 'block', fontSize: 12 }}>
-                秒后可确认删除
+                秒后可确认清理
               </Text>
             </div>
           )}

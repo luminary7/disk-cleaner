@@ -126,7 +126,7 @@ function registerIPC() {
   });
 
   // ========= 清理（并发池，200 条同时移动，支持取消）=========
-  ipcMain.handle('clean:execute', async (_event, items) => {
+  ipcMain.handle('clean:execute', async (_event, items, options = {}) => {
     cleanCancelled = false;
     cleanCompletedItems = [];
 
@@ -135,13 +135,22 @@ function registerIPC() {
     const results = new Array(total);
     let completed = 0;
     let nextIdx = 0;
+    let restorePoint = null;
+
+    const shouldCreateRestorePoint =
+      store?.get('settings', { createRestorePoint: true }).createRestorePoint &&
+      items.some((item) => options.allowCaution || item.safety === 'caution' || item.category === 'system');
+
+    if (shouldCreateRestorePoint) {
+      restorePoint = fileOperator.createSystemRestorePoint();
+    }
 
     async function worker() {
       while (!cleanCancelled) {
         const idx = nextIdx++;
         if (idx >= total) break;
         const item = items[idx];
-        const r = await fileOperator.moveToTrash(item.path);
+        const r = await fileOperator.moveToTrash(item, options);
         results[idx] = { ...item, success: r.success, error: r.error };
         completed++;
         if (r.success) {
@@ -170,17 +179,20 @@ function registerIPC() {
     }
 
     // 正常完成
-    const successCount = results.filter((r) => r.success).length;
+    const successCount = results.filter((r) => r?.success).length;
+    const failedCount = results.filter((r) => r && !r.success).length;
     const freedBytes = results
-      .filter((r) => r.success)
+      .filter((r) => r?.success)
       .reduce((sum, r) => sum + (r.size || 0), 0);
 
     mainWindow?.webContents.send('clean:complete', {
       itemCount: successCount,
+      failedCount,
       freedBytes,
+      restorePoint,
     });
 
-    return { itemCount: successCount, freedBytes };
+    return { itemCount: successCount, failedCount, freedBytes, restorePoint, results };
   });
 
   // ========= 取消清理 =========
@@ -317,8 +329,8 @@ function registerIPC() {
   });
 
   // ========= 单文件删除 =========
-  ipcMain.handle('clean:single', async (_event, item) => {
-    const result = await fileOperator.moveToTrash(item.path);
+  ipcMain.handle('clean:single', async (_event, item, options = {}) => {
+    const result = await fileOperator.moveToTrash(item, options);
     return { ...item, success: result.success, error: result.error };
   });
 

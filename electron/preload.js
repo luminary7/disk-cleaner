@@ -19,7 +19,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onScanError: (callback) => onIpc('scan:error', callback),
 
   // 清理相关
-  executeClean: (items) => ipcRenderer.invoke('clean:execute', items),
+  executeClean: (items, options) => ipcRenderer.invoke('clean:execute', items, options),
   cancelClean: () => ipcRenderer.invoke('clean:cancel'),
   restoreItems: (items) => ipcRenderer.invoke('clean:restore', items),
   onCleanProgress: (callback) => onIpc('clean:progress', callback),
@@ -61,7 +61,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   createRestorePoint: () => ipcRenderer.invoke('system:create-restore-point'),
 
   // 单文件删除（不触发 clean:complete 事件）
-  cleanSingle: (item) => ipcRenderer.invoke('clean:single', item),
+  cleanSingle: (item, options) => ipcRenderer.invoke('clean:single', item, options),
 
   // 打开回收站
   openRecycleBin: () => ipcRenderer.invoke('system:open-recycle-bin'),

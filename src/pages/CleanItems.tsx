@@ -98,14 +98,23 @@ export default function CleanItems() {
 
   const handleClean = () => {
     const selectedItems = items.filter((i) => selectedIds.has(i.id));
-    const hasKeepItems = selectedItems.some((i) => i.safety === 'keep');
+    const cleanableItems = selectedItems.filter((i) => i.safety !== 'keep');
+    const hasCautionItems = cleanableItems.some((i) => i.safety === 'caution');
+
+    if (cleanableItems.length === 0) {
+      message.warning('选中项目均为建议保留，已被安全策略阻止');
+      return;
+    }
 
     const doClean = async () => {
       if (!window.electronAPI) return;
       setCleaning(true);
       pendingRestoreRef.current = [];
       try {
-        const result = (await window.electronAPI.executeClean(selectedItems)) as any;
+        const result = await window.electronAPI.executeClean(
+          cleanableItems,
+          hasCautionItems ? { allowCaution: true } : undefined
+        );
         if (result.cancelled) {
           const completed = result.completedItems || [];
           if (completed.length > 0) {
@@ -124,8 +133,14 @@ export default function CleanItems() {
             message.info('已取消清理（无已删除文件需要恢复）');
           }
         } else {
-          message.success(`已清理 ${result.itemCount} 项，释放 ${formatSize(result.freedBytes)}`);
-          setItems((prev) => prev.filter((i) => !selectedIds.has(i.id)));
+          const restoreMsg = result.restorePoint?.message ? `，${result.restorePoint.message}` : '';
+          if (result.failedCount && result.failedCount > 0) {
+            message.warning(`已清理 ${result.itemCount} 项，${result.failedCount} 项被阻止${restoreMsg}`);
+          } else {
+            message.success(`已清理 ${result.itemCount} 项，释放 ${formatSize(result.freedBytes)}${restoreMsg}`);
+          }
+          const successIds = new Set((result.results || []).filter((r) => r.success).map((r) => r.id));
+          setItems((prev) => prev.filter((i) => !successIds.has(i.id)));
           setSelectedIds(new Set());
         }
       } finally {
@@ -133,10 +148,10 @@ export default function CleanItems() {
       }
     };
 
-    if (hasKeepItems) {
+    if (hasCautionItems) {
       Modal.confirm({
-        title: '确定要清理选中的「建议保留」项目吗？',
-        content: '这些项目可能对系统正常运行有帮助，建议谨慎操作。',
+        title: '确定要清理选中的「谨慎项」吗？',
+        content: '谨慎项可能包含近期缓存、系统缓存或需要人工判断的文件。请确认这些项目不影响你的数据和程序使用。',
         okText: '确认清理',
         cancelText: '取消',
         onOk: doClean,
@@ -147,6 +162,8 @@ export default function CleanItems() {
   };
 
   const toggleSelect = (id: string) => {
+    const item = items.find((i) => i.id === id);
+    if (item?.safety === 'keep') return;
     setSelectedIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
@@ -162,11 +179,34 @@ export default function CleanItems() {
 
   const handleSingleDelete = async (item: ScanItem) => {
     if (!window.electronAPI) return;
+
+    if (item.safety === 'keep') {
+      message.warning('建议保留项目已被安全策略阻止');
+      return;
+    }
+
+    let options: CleanOptions | undefined;
+    if (item.safety === 'caution') {
+      const confirmed = await new Promise<boolean>((resolve) => {
+        Modal.confirm({
+          title: '确认清理谨慎项？',
+          content: '此项目需要人工确认。请确认它不是正在使用的数据或重要文件。',
+          okText: '确认清理',
+          okType: 'danger',
+          cancelText: '取消',
+          onOk: () => resolve(true),
+          onCancel: () => resolve(false),
+        });
+      });
+      if (!confirmed) return;
+      options = { allowCaution: true };
+    }
+
     setDeletingIds(prev => new Set(prev).add(item.id));
     try {
-      const result = await window.electronAPI.cleanSingle(item);
+      const result = await window.electronAPI.cleanSingle(item, options);
       if (result.success) {
-        message.success(`已删除: ${item.name}`);
+        message.success(`已清理: ${item.name}`);
         setItems(prev => prev.filter(i => i.id !== item.id));
         setSelectedIds(prev => {
           const next = new Set(prev);
@@ -193,12 +233,13 @@ export default function CleanItems() {
     {
       title: (
         <Checkbox
-          checked={items.length > 0 && selectedIds.size === items.length}
+          checked={items.some((i) => i.safety !== 'keep') && selectedIds.size === items.filter((i) => i.safety !== 'keep').length}
           onChange={() => {
-            if (selectedIds.size === items.length) {
+            const selectableItems = items.filter((i) => i.safety !== 'keep');
+            if (selectedIds.size === selectableItems.length) {
               setSelectedIds(new Set());
             } else {
-              setSelectedIds(new Set(items.map((i) => i.id)));
+              setSelectedIds(new Set(selectableItems.map((i) => i.id)));
             }
           }}
         />
@@ -206,8 +247,12 @@ export default function CleanItems() {
       dataIndex: 'id',
       key: 'checkbox',
       width: 40,
-      render: (id: string) => (
-        <Checkbox checked={selectedIds.has(id)} onChange={() => toggleSelect(id)} />
+      render: (id: string, record) => (
+        <Checkbox
+          checked={selectedIds.has(id)}
+          disabled={record.safety === 'keep'}
+          onChange={() => toggleSelect(id)}
+        />
       ),
     },
     { title: '名称', dataIndex: 'name', key: 'name', ellipsis: true },
@@ -255,9 +300,10 @@ export default function CleanItems() {
           danger
           icon={<DeleteOutlined />}
           loading={deletingIds.has(record.id)}
+          disabled={record.safety === 'keep'}
           onClick={() => handleSingleDelete(record)}
         >
-          删除
+          清理
         </Button>
       ),
     },

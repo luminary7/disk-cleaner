@@ -9,20 +9,70 @@ const { execSync } = require('child_process');
 const ruleEngine = require('./rule-engine');
 const logger = require('./logger');
 
+function normalizeItem(itemOrPath) {
+  if (typeof itemOrPath === 'string') {
+    return { path: itemOrPath };
+  }
+  return itemOrPath || {};
+}
+
+function isRootLikePath(itemPath) {
+  const normalized = path.normalize(itemPath);
+  const parsed = path.parse(normalized);
+  return normalized.toLowerCase() === parsed.root.toLowerCase();
+}
+
+function getItemSizeAndSafety(item, normalizedPath) {
+  const stat = fs.statSync(normalizedPath);
+  if (!stat.isFile()) {
+    return {
+      size: getSize(normalizedPath),
+      safety: item.safety || 'caution',
+    };
+  }
+
+  const category = item.category || 'large-file';
+  const size = stat.size;
+  const safety = ruleEngine.evaluate(normalizedPath, size, category, { mtimeMs: stat.mtimeMs });
+  return { size, safety };
+}
+
 /**
  * 将指定文件/文件夹移入回收站，带安全校验
- * @param {string} itemPath
+ * @param {string|object} itemOrPath
+ * @param {{ allowCaution?: boolean, forceKeep?: boolean }} options
  * @returns {{ success: boolean, error?: string }}
  */
-async function moveToTrash(itemPath) {
+async function moveToTrash(itemOrPath, options = {}) {
+  const item = normalizeItem(itemOrPath);
+  const itemPath = item.path;
+
+  if (!itemPath) {
+    return { success: false, error: '缺少文件路径' };
+  }
+
+  const normalizedPath = path.normalize(itemPath);
+
+  if (isRootLikePath(normalizedPath)) {
+    return { success: false, error: `禁止清理磁盘根目录: ${normalizedPath}` };
+  }
+
   // 安全检查：排除列表校验
-  if (ruleEngine.isExcludedPath(itemPath)) {
-    return { success: false, error: `路径受保护: ${itemPath}` };
+  if (ruleEngine.isExcludedPath(normalizedPath)) {
+    return { success: false, error: `路径受保护: ${normalizedPath}` };
   }
 
   try {
-    const result = await shell.trashItem(itemPath);
-    logger.writeLog('trash', itemPath, getSize(itemPath));
+    const { size, safety } = getItemSizeAndSafety(item, normalizedPath);
+    if (safety === 'keep' && !options.forceKeep) {
+      return { success: false, error: `安全策略阻止删除: ${normalizedPath}` };
+    }
+    if (safety === 'caution' && !options.allowCaution) {
+      return { success: false, error: `谨慎项需要确认后清理: ${normalizedPath}` };
+    }
+
+    await shell.trashItem(normalizedPath);
+    logger.writeLog('trash', normalizedPath, size);
     return { success: true };
   } catch (err) {
     return { success: false, error: err.message };
@@ -32,10 +82,10 @@ async function moveToTrash(itemPath) {
 /**
  * 批量移至回收站
  */
-async function moveBatchToTrash(items) {
+async function moveBatchToTrash(items, options = {}) {
   const results = [];
   for (const item of items) {
-    const result = await moveToTrash(item.path);
+    const result = await moveToTrash(item, options);
     results.push({ ...item, success: result.success, error: result.error });
   }
   return results;

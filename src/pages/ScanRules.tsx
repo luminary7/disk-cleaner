@@ -29,19 +29,19 @@ const SAFETY_LEVELS: SafetyRule[] = [
     level: 'safe',
     color: 'green',
     icon: <CheckCircleOutlined />,
-    desc: '可安全删除。纯缓存、临时文件，可再生且不影响系统或应用功能。',
+    desc: '可安全删除。仅默认清理明确缓存/临时目录中符合规则的项目。',
   },
   {
     level: 'caution',
     color: 'gold',
     icon: <WarningOutlined />,
-    desc: '谨慎删除。用户数据、游戏资源、可执行模块，需人工确认后再清理。',
+    desc: '谨慎删除。需要人工确认，默认一键清理不会自动包含。',
   },
   {
     level: 'keep',
     color: 'red',
     icon: <LockOutlined />,
-    desc: '建议保留。系统文件、应用本体，删除可能导致程序异常或数据丢失。',
+    desc: '建议保留。普通清理入口会阻止删除，AI 也不能把它降级为可删。',
   },
 ];
 
@@ -49,7 +49,7 @@ const CATEGORY_RULES = [
   {
     category: 'temp',
     label: '系统临时文件',
-    rule: '全部标记为 safe，可安全删除',
+    rule: '24 小时前的已知临时文件标记为 safe，近期文件标记为 caution',
     paths: '用户临时目录 (%TMP%)',
   },
   {
@@ -61,8 +61,8 @@ const CATEGORY_RULES = [
   {
     category: 'app',
     label: '应用缓存',
-    rule: '3 天前的缓存标记为 safe，3 天内的标记为 caution',
-    paths: '微信 / QQ / 钉钉等第三方应用数据目录',
+    rule: '仅扫描已知缓存/日志/临时子目录，7 天前的缓存可标记为 safe',
+    paths: '微信 / QQ / 钉钉的 Cache / Code Cache / GPUCache / Logs / Temp 等子目录',
   },
   {
     category: 'system',
@@ -73,7 +73,7 @@ const CATEGORY_RULES = [
   {
     category: 'large-file',
     label: '大文件',
-    rule: '安装包/压缩包标记为 safe；>1GB 标记为 caution；位于用户数据目录下标记为 caution；其余一律 caution',
+    rule: '大文件以发现和人工判断为主；压缩包/镜像为 caution，虚拟磁盘/游戏资源/未知类型为 keep',
     paths: '各盘符根目录下 >50MB 的文件',
   },
 ];
@@ -108,37 +108,37 @@ const EXTENSION_DATA = [
   {
     key: 'package',
     name: '安装包/压缩包',
-    exts: '.zip .rar .7z .tar .gz .bz2 .xz .iso',
-    safety: 'safe（缓存目录下）',
-    color: 'green',
+    exts: '.zip .rar .7z .tar .gz .bz2 .xz .iso .img',
+    safety: 'caution（大文件扫描）',
+    color: 'gold',
   },
   {
     key: 'cache',
     name: '缓存/临时文件',
     exts: '.tmp .log .cache .bak .old .dmp .swp',
-    safety: 'safe',
+    safety: '按目录/时间判定',
     color: 'green',
   },
   {
     key: 'code',
     name: '代码/配置',
     exts: '.js .ts .css .html .json .xml .yaml .yml .txt .md .csv .ini .cfg',
-    safety: 'safe',
-    color: 'green',
+    safety: '按目录/时间判定',
+    color: 'gold',
   },
   {
     key: 'media',
     name: '图片/视频/音频',
     exts: '.png .jpg .jpeg .gif .svg .ico .bmp .webp .mp4 .avi .mkv .mov .wmv .flv .webm .mp3 .wav .flac .aac .ogg',
-    safety: 'safe',
-    color: 'green',
+    safety: '用户目录不 safe',
+    color: 'gold',
   },
   {
     key: 'doc',
     name: '文档/数据',
     exts: '.db .sqlite .sqlite3 .pdf .doc .docx .xls .xlsx .ppt .pptx',
-    safety: 'safe',
-    color: 'green',
+    safety: '用户目录不 safe',
+    color: 'gold',
   },
   {
     key: 'unknown',
@@ -283,7 +283,7 @@ export default function ScanRules() {
           </div>
           <Divider style={{ margin: '8px 0' }} />
           <Text type="secondary" style={{ fontSize: 12 }}>
-            位于这些目录下的文件（尤其是大文件）会被标记为 caution，需要用户确认
+            位于这些目录下的文件不会仅因时间较久而标记为 safe；已知缓存子目录除外
           </Text>
         </Card>
       </div>
@@ -311,6 +311,20 @@ export default function ScanRules() {
             <Text type="secondary" style={{ fontSize: 13 }}>
               当扫描到不认识的扩展名时（可能是游戏资源、专有格式、用户数据等），
               规则引擎会保守地将其标记为「建议保留」，避免误删。此规则优先于所有分类规则。
+            </Text>
+          </div>
+        </Space>
+      </Card>
+
+      <Card title="删除前复核机制" style={{ marginTop: 16 }}>
+        <Space align="start" size={12}>
+          <LockOutlined style={{ fontSize: 22, color: '#ff4d4f' }} />
+          <div>
+            <Text strong style={{ color: '#262626' }}>后端会在移入回收站前重新校验路径和安全等级</Text>
+            <br />
+            <Text type="secondary" style={{ fontSize: 13 }}>
+              safe 项可默认清理；caution 项必须由界面显式确认；keep 项会被普通清理入口阻止。
+              AI 分析只作为辅助参考，可以提高风险等级，但不能把 keep 项降级为可删除。
             </Text>
           </div>
         </Space>

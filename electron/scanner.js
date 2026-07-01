@@ -40,21 +40,31 @@ const SCAN_TARGETS = [
   {
     category: 'app', name: '微信缓存',
     paths: () => [
-      path.join(os.homedir(), 'Documents', 'WeChat Files'),
-      path.join(os.homedir(), 'AppData', 'Roaming', 'Tencent', 'WeChat'),
+      path.join(os.homedir(), 'AppData', 'Roaming', 'Tencent', 'WeChat', 'Cache'),
+      path.join(os.homedir(), 'AppData', 'Roaming', 'Tencent', 'WeChat', 'Code Cache'),
+      path.join(os.homedir(), 'AppData', 'Roaming', 'Tencent', 'WeChat', 'GPUCache'),
+      path.join(os.homedir(), 'AppData', 'Roaming', 'Tencent', 'WeChat', 'logs'),
+      path.join(os.homedir(), 'AppData', 'Roaming', 'Tencent', 'WeChat', 'xlog'),
     ],
   },
   {
     category: 'app', name: 'QQ 缓存',
     paths: () => [
-      path.join(os.homedir(), 'Documents', 'Tencent Files'),
-      path.join(os.homedir(), 'AppData', 'Roaming', 'Tencent', 'QQ'),
+      path.join(os.homedir(), 'AppData', 'Roaming', 'Tencent', 'QQ', 'Cache'),
+      path.join(os.homedir(), 'AppData', 'Roaming', 'Tencent', 'QQ', 'Code Cache'),
+      path.join(os.homedir(), 'AppData', 'Roaming', 'Tencent', 'QQ', 'GPUCache'),
+      path.join(os.homedir(), 'AppData', 'Roaming', 'Tencent', 'QQ', 'Logs'),
+      path.join(os.homedir(), 'AppData', 'Roaming', 'Tencent', 'QQ', 'Temp'),
     ],
   },
   {
     category: 'app', name: '钉钉缓存',
     paths: () => [
-      path.join(os.homedir(), 'AppData', 'Roaming', 'DingTalk'),
+      path.join(os.homedir(), 'AppData', 'Roaming', 'DingTalk', 'Cache'),
+      path.join(os.homedir(), 'AppData', 'Roaming', 'DingTalk', 'Code Cache'),
+      path.join(os.homedir(), 'AppData', 'Roaming', 'DingTalk', 'GPUCache'),
+      path.join(os.homedir(), 'AppData', 'Roaming', 'DingTalk', 'logs'),
+      path.join(os.homedir(), 'AppData', 'Roaming', 'DingTalk', 'Temp'),
     ],
   },
   {

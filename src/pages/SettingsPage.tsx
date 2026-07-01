@@ -80,10 +80,10 @@ export default function SettingsPage({ onBack }: Props) {
         <Space align="start" size="middle">
           <SafetyCertificateOutlined style={{ fontSize: 24, color: '#1677ff' }} />
           <div style={{ flex: 1 }}>
-            <Text strong>清理前创建系统还原点</Text>
+            <Text strong>清理谨慎项前创建系统还原点</Text>
             <br />
             <Text type="secondary">
-              创建 Windows 系统还原点，以便在出现问题时恢复系统
+              仅辅助恢复系统状态；普通文件恢复仍以回收站为准
             </Text>
           </div>
           <Switch

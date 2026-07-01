@@ -34,7 +34,7 @@ const SYSTEM_EXCLUSIONS = [
 
 // 用户数据目录标记 — caution（含用户数据或判断成本高）
 // 用字符串 includes 而非正则，避免 Windows 反斜杠转义问题
-var CAUTION_DIR_MARKS = [
+var USER_DATA_DIR_MARKS = [
   '\\appdata\\roaming\\',
   '\\documents\\',
   '\\desktop\\',
@@ -63,6 +63,55 @@ var CAUTION_DIR_MARKS = [
   '\\envs\\',
 ];
 
+// 已知清理用途目录 — 只有这些缓存/日志/临时目录允许按年龄降级为 safe
+var CLEANUP_DIR_MARKS = [
+  '\\temp\\',
+  '\\tmp\\',
+  '\\cache\\',
+  '\\cache_data\\',
+  '\\code cache\\',
+  '\\gpucache\\',
+  '\\inetcache\\',
+  '\\logs\\',
+  '\\log\\',
+  '\\xlog\\',
+  '\\crash\\',
+  '\\crashes\\',
+  '\\dump\\',
+  '\\dumps\\',
+  '\\thumb\\',
+  '\\thumbnail\\',
+  '\\thumbnails\\',
+  '\\windows\\temp\\',
+  '\\windows\\prefetch\\',
+  '\\windows\\logs\\',
+  '\\softwaredistribution\\download\\',
+  '\\microsoft\\windows\\wer\\',
+  '\\microsoft\\windows\\explorer\\',
+];
+
+// 大文件高风险目录 — keep
+var HIGH_RISK_DIR_MARKS = [
+  '\\game\\',
+  '\\games\\',
+  '\\steam\\',
+  '\\steamapps\\',
+  '\\epic\\',
+  '\\common\\',
+  '_data\\',
+  '\\minecraft\\',
+  '\\projects\\',
+  '\\node_modules\\',
+  '\\vendor\\',
+  '\\python\\',
+  '\\anaconda\\',
+  '\\miniconda\\',
+  '\\envs\\',
+  '\\wsl\\',
+  '\\virtual machines\\',
+  '\\vms\\',
+];
+
 // 系统关键文件类型 — keep
 const SYSTEM_FILE_EXTS = [
   '.sys', '.ocx', '.drv', '.cpl',
@@ -75,7 +124,12 @@ const CAUTION_FILE_EXTS = [
 
 // 安装包/压缩包 — 在缓存目录 safe
 const PACKAGE_EXTS = [
-  '.zip', '.rar', '.7z', '.tar', '.gz', '.bz2', '.xz', '.iso',
+  '.zip', '.rar', '.7z', '.tar', '.gz', '.bz2', '.xz', '.iso', '.img',
+];
+
+// 虚拟磁盘/镜像与常见游戏资源 — keep
+const HIGH_RISK_FILE_EXTS = [
+  '.vhd', '.vhdx', '.vmdk', '.qcow2', '.pak', '.obb',
 ];
 
 // 已知可清理的缓存/临时文件扩展名
@@ -91,7 +145,7 @@ const CACHE_SAFE_EXTS = [
 ];
 
 // 所有已知扩展名合并（用于未知扩展名校验）
-var KNOWN_EXTS = SYSTEM_FILE_EXTS.concat(CAUTION_FILE_EXTS, PACKAGE_EXTS, CACHE_SAFE_EXTS);
+var KNOWN_EXTS = SYSTEM_FILE_EXTS.concat(CAUTION_FILE_EXTS, PACKAGE_EXTS, HIGH_RISK_FILE_EXTS, CACHE_SAFE_EXTS);
 
 function isExcludedPath(filePath) {
   return SYSTEM_EXCLUSIONS.some(function (pattern) { return pattern.test(filePath); });
@@ -99,7 +153,17 @@ function isExcludedPath(filePath) {
 
 function isCautionPath(filePath) {
   var lower = filePath.toLowerCase();
-  return CAUTION_DIR_MARKS.some(function (mark) { return lower.indexOf(mark) !== -1; });
+  return USER_DATA_DIR_MARKS.some(function (mark) { return lower.indexOf(mark) !== -1; });
+}
+
+function isCleanupPath(filePath) {
+  var lower = filePath.toLowerCase();
+  return CLEANUP_DIR_MARKS.some(function (mark) { return lower.indexOf(mark) !== -1; });
+}
+
+function isHighRiskPath(filePath) {
+  var lower = filePath.toLowerCase();
+  return HIGH_RISK_DIR_MARKS.some(function (mark) { return lower.indexOf(mark) !== -1; });
 }
 
 function getExt(filePath) {
@@ -113,6 +177,7 @@ function evaluate(filePath, size, category, extra) {
 
   // keep 判定
   if (SYSTEM_FILE_EXTS.indexOf('.' + ext) !== -1) return 'keep';
+  if (HIGH_RISK_FILE_EXTS.indexOf('.' + ext) !== -1) return 'keep';
   if (isExcludedPath(filePath)) return 'keep';
 
   // caution 判定（通用）
@@ -125,19 +190,27 @@ function evaluate(filePath, size, category, extra) {
   // 按类别细分
   switch (category) {
     case 'temp':
-      return 'safe';
+      return evaluateTemp(extra);
     case 'browser':
       return evaluateBrowser(extra);
     case 'app':
+      if (isCautionPath(filePath) && !isCleanupPath(filePath)) return 'caution';
       return evaluateAppCache(extra);
     case 'system':
       return 'caution';
     case 'large-file':
+      if (isHighRiskPath(filePath)) return 'keep';
       if (isCautionPath(filePath)) return 'caution';
       return evaluateLargeFile(size, filePath);
     default:
       return 'caution';
   }
+}
+
+function evaluateTemp(extra) {
+  var ageHours = getAgeHours(extra.mtimeMs);
+  if (ageHours > 24) return 'safe';
+  return 'caution';
 }
 
 function evaluateBrowser(extra) {
@@ -148,17 +221,15 @@ function evaluateBrowser(extra) {
 
 function evaluateAppCache(extra) {
   var ageHours = getAgeHours(extra.mtimeMs);
-  if (ageHours > 72) return 'safe';
+  if (ageHours > 168) return 'safe';
   return 'caution';
 }
 
 function evaluateLargeFile(size, filePath) {
   var ext = getExt(filePath);
-  // 安装包/压缩包 → 可安全删
-  if (PACKAGE_EXTS.indexOf('.' + ext) !== -1) return 'safe';
-  // 超大文件 > 1GB → 谨慎
-  if (size > 1073741824) return 'caution';
-  // 其余大文件一律 caution（可能是游戏资源、用户数据等）
+  // 安装包/压缩包/镜像在全盘大文件扫描中也需要人工确认
+  if (PACKAGE_EXTS.indexOf('.' + ext) !== -1) return 'caution';
+  // 其余大文件一律 caution（可能是素材、备份、视频等用户数据）
   return 'caution';
 }
 
@@ -170,5 +241,7 @@ function getAgeHours(mtimeMs) {
 module.exports = {
   evaluate: evaluate,
   isExcludedPath: isExcludedPath,
+  isCautionPath: isCautionPath,
+  isCleanupPath: isCleanupPath,
   SYSTEM_EXCLUSIONS: SYSTEM_EXCLUSIONS,
 };
