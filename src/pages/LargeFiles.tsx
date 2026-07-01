@@ -128,6 +128,7 @@ export default function LargeFiles() {
   const [batchProgress, setBatchProgress] = useState<{ current: number; total: number; currentItem: string } | null>(null);
   const [aiReady, setAiReady] = useState(false);
   const [aiSafetyMap, setAiSafetyMap] = useState<Map<string, { safety: 'safe' | 'caution' | 'keep'; reason: string }>>(new Map());
+  const [analysisCache, setAnalysisCache] = useState<Record<string, SingleFileAnalysis> | null>(null);
 
   const [pageSize, setPageSize] = useState(20);
   const [showDriveSelect, setShowDriveSelect] = useState(false);
@@ -183,12 +184,36 @@ export default function LargeFiles() {
     handleStartScanWithDrives(['C:\\']);
   };
 
+  const loadAnalysisCache = async (scanFiles?: ScanItem[]) => {
+    if (!window.electronAPI) return;
+    try {
+      const cache = await window.electronAPI.getAnalysisCache();
+      setAnalysisCache(cache);
+    } catch { /* 忽略缓存加载失败 */ }
+  };
+
+  // analysisCache 或 files 变化时，自动恢复 aiSafetyMap 和 singleAnalysisMap
+  useEffect(() => {
+    if (!analysisCache || files.length === 0) return;
+    const safetyMap = new Map<string, { safety: 'safe' | 'caution' | 'keep'; reason: string }>();
+    const analysisMap = new Map<string, SingleFileAnalysis>();
+    for (const file of files) {
+      if (analysisCache[file.path]) {
+        safetyMap.set(file.id, mapToAISafety(analysisCache[file.path]));
+        analysisMap.set(file.id, analysisCache[file.path]);
+      }
+    }
+    if (safetyMap.size > 0) setAiSafetyMap(safetyMap);
+    if (analysisMap.size > 0) setSingleAnalysisMap(analysisMap);
+  }, [analysisCache, files]);
+
   const handleStartScanWithDrives = async (drives: string[]) => {
     setShowDriveSelect(false);
     if (!window.electronAPI) return;
     setLoading(true);
     setFiles([]);
     setSingleAnalysisMap(new Map());
+    setAiSafetyMap(new Map());
     setSelectedIds(new Set());
     try {
       const result = await window.electronAPI.startLargeFileScan(drives);
@@ -196,6 +221,8 @@ export default function LargeFiles() {
       result.sort((a, b) => b.size - a.size);
       setFiles(result);
       message.success(`找到 ${result.length} 个大文件`);
+      // 扫描完成后加载缓存，恢复历史 AI 分析结果
+      await loadAnalysisCache(result);
     } catch {
       message.error('大文件扫描失败');
     } finally {
@@ -277,6 +304,24 @@ export default function LargeFiles() {
   const handleSingleAnalysis = async (item: ScanItem) => {
     if (!window.electronAPI) return;
     if (analyzingFileId) return; // 防止同时分析多个
+
+    // 查缓存
+    if (analysisCache?.[item.path]) {
+      const cached = analysisCache[item.path];
+      setSingleAnalysisMap(prev => {
+        const next = new Map(prev);
+        next.set(item.id, cached);
+        return next;
+      });
+      setAiSafetyMap(prev => {
+        const next = new Map(prev);
+        next.set(item.id, mapToAISafety(cached));
+        return next;
+      });
+      setViewingFileId(item.id);
+      return;
+    }
+
     setAnalyzingFileId(item.id);
     try {
       const result = await window.electronAPI.analyzeSingleFile(item);
@@ -311,9 +356,13 @@ export default function LargeFiles() {
   const handleBatchAnalysis = useCallback(async () => {
     if (!window.electronAPI || loading) return;
 
-    // 按大小降序排列，取前 10 个未分析文件
+    // 按大小降序排列，取前 10 个未分析且未缓存的文件
     const sorted = [...files].sort((a, b) => b.size - a.size);
-    const unanalyzed = sorted.filter(f => !aiSafetyMap.has(f.id));
+    const unanalyzed = sorted.filter(f => {
+      if (aiSafetyMap.has(f.id)) return false;          // 本次会话已分析
+      if (analysisCache?.[f.path]) return false;         // 历史缓存
+      return true;
+    });
     const total = unanalyzed.length;
     if (total === 0) {
       message.info('所有文件已通过 AI 评估');
@@ -542,6 +591,21 @@ export default function LargeFiles() {
           >
             {batchProgress ? batchProgress.currentItem : 'AI 批量分析'}
           </Button>
+          {analysisCache && Object.keys(analysisCache).length > 0 && (
+            <Button
+              icon={<DeleteOutlined />}
+              onClick={async () => {
+                await window.electronAPI?.clearAnalysisCache();
+                setAnalysisCache(null);
+                setAiSafetyMap(new Map());
+                setSingleAnalysisMap(new Map());
+                message.success('AI 分析缓存已清除');
+              }}
+              style={{ fontSize: 12 }}
+            >
+              清除 AI 缓存
+            </Button>
+          )}
           <Button
             icon={<FolderOpenOutlined />}
             onClick={() => window.electronAPI?.openRecycleBin()}
@@ -790,7 +854,7 @@ export default function LargeFiles() {
             <Spin />
           </div>
         ) : (
-          <Descriptions column={1} bordered size="small" style={{ marginTop: 16 }}>
+          <Descriptions column={1} bordered size="small" style={{ marginTop: 16 }} labelStyle={{ width: 100 }}>
             <Descriptions.Item label="文件类型">{viewingAnalysis.type}</Descriptions.Item>
             <Descriptions.Item label="用途说明">{viewingAnalysis.purpose}</Descriptions.Item>
             <Descriptions.Item label="风险等级">
@@ -806,9 +870,9 @@ export default function LargeFiles() {
             </Descriptions.Item>
             <Descriptions.Item label="建议操作">
               {viewingAnalysis.suggestDelete ? (
-                <Tag color="error" icon={<WarningOutlined />}>建议删除</Tag>
+                <Tag color="success" icon={<CheckCircleOutlined />}>建议删除</Tag>
               ) : (
-                <Tag color="success" icon={<CheckCircleOutlined />}>建议保留</Tag>
+                <Tag color="error" icon={<WarningOutlined />}>建议保留</Tag>
               )}
             </Descriptions.Item>
             <Descriptions.Item label="详细理由">{viewingAnalysis.reason}</Descriptions.Item>

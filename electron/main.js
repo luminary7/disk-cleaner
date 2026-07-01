@@ -262,8 +262,31 @@ function registerIPC() {
   });
 
   ipcMain.handle('ai:analyze-single-file', async (_event, item) => {
+    // 查缓存
+    const cache = store.get('aiAnalysisCache', {});
+    if (cache[item.path]) {
+      return cache[item.path].result;
+    }
+    // 无缓存，调用 AI
     const detail = await getFileDetail(item.path, item);
-    return await aiProvider.analyzeSingleFile(detail);
+    const result = await aiProvider.analyzeSingleFile(detail);
+    cache[item.path] = { result, cachedAt: Date.now() };
+    store.set('aiAnalysisCache', cache);
+    return result;
+  });
+
+  ipcMain.handle('ai:get-analysis-cache', async () => {
+    const cache = store.get('aiAnalysisCache', {});
+    // 只返回 result，前端不需要 cachedAt
+    const entries = {};
+    for (const [path, entry] of Object.entries(cache)) {
+      entries[path] = entry.result;
+    }
+    return entries;
+  });
+
+  ipcMain.handle('ai:clear-analysis-cache', async () => {
+    store.set('aiAnalysisCache', {});
   });
 
   // ========= AI 配置预设 =========

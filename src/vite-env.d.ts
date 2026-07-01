@@ -142,6 +142,10 @@ declare global {
     // 打开回收站
     openRecycleBin: () => Promise<void>;
 
+    // AI 分析结果缓存
+    getAnalysisCache: () => Promise<Record<string, SingleFileAnalysis>>;
+    clearAnalysisCache: () => Promise<void>;
+
   }
 
   interface Window {

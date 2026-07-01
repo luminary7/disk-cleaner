@@ -48,6 +48,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   deleteAIPreset: (name) => ipcRenderer.invoke('ai:delete-preset', name),
   saveActivePreset: (name) => ipcRenderer.invoke('ai:save-active-preset', name),
   getActivePreset: () => ipcRenderer.invoke('ai:get-active-preset'),
+  getAnalysisCache: () => ipcRenderer.invoke('ai:get-analysis-cache'),
+  clearAnalysisCache: () => ipcRenderer.invoke('ai:clear-analysis-cache'),
 
   // 日志相关
   getLogs: () => ipcRenderer.invoke('log:get'),
