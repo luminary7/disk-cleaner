@@ -11,7 +11,10 @@ import {
   Checkbox,
   Row,
 } from 'antd';
-import { ScanOutlined, DeleteOutlined, CloseCircleOutlined, FolderOpenOutlined } from '@ant-design/icons';
+import ScanOutlined from '@ant-design/icons/ScanOutlined';
+import DeleteOutlined from '@ant-design/icons/DeleteOutlined';
+import CloseCircleOutlined from '@ant-design/icons/CloseCircleOutlined';
+import FolderOpenOutlined from '@ant-design/icons/FolderOpenOutlined';
 import type { ColumnsType } from 'antd/es/table';
 import safeCleanImg from '../assets/ui-kit/safe-clean.webp';
 import tempCacheImg from '../assets/ui-kit/temp-cache.webp';

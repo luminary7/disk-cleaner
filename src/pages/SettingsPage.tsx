@@ -9,12 +9,10 @@ import {
   Divider,
   List,
 } from 'antd';
-import {
-  ArrowLeftOutlined,
-  SafetyCertificateOutlined,
-  FileTextOutlined,
-  FolderOpenOutlined,
-} from '@ant-design/icons';
+import ArrowLeftOutlined from '@ant-design/icons/ArrowLeftOutlined';
+import SafetyCertificateOutlined from '@ant-design/icons/SafetyCertificateOutlined';
+import FileTextOutlined from '@ant-design/icons/FileTextOutlined';
+import FolderOpenOutlined from '@ant-design/icons/FolderOpenOutlined';
 
 const { Title, Text } = Typography;
 

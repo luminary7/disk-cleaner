@@ -1,5 +1,5 @@
 import { Card, Tag, Typography, Space } from 'antd';
-import { HistoryOutlined } from '@ant-design/icons';
+import HistoryOutlined from '@ant-design/icons/HistoryOutlined';
 import Markdown from 'react-markdown';
 
 const { Title, Text } = Typography;

@@ -17,15 +17,13 @@ import {
   Popconfirm,
   Empty,
 } from 'antd';
-import {
-  RobotOutlined,
-  CheckCircleOutlined,
-  PlusOutlined,
-  CheckCircleFilled,
-  DeleteOutlined,
-  EditOutlined,
-  LinkOutlined,
-} from '@ant-design/icons';
+import RobotOutlined from '@ant-design/icons/RobotOutlined';
+import CheckCircleOutlined from '@ant-design/icons/CheckCircleOutlined';
+import PlusOutlined from '@ant-design/icons/PlusOutlined';
+import CheckCircleFilled from '@ant-design/icons/CheckCircleFilled';
+import DeleteOutlined from '@ant-design/icons/DeleteOutlined';
+import EditOutlined from '@ant-design/icons/EditOutlined';
+import LinkOutlined from '@ant-design/icons/LinkOutlined';
 import { PRESET_PROVIDERS } from '../shared/provider-config';
 import type { PresetProvider } from '../shared/provider-config';
 import aiAnalysisImg from '../assets/ui-kit/ai-analysis.webp';

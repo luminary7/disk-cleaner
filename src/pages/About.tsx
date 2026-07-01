@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Card, Descriptions, Tag, Typography, Space, Divider, Spin, Modal } from 'antd';
-import { InfoCircleOutlined, UserOutlined } from '@ant-design/icons';
+import InfoCircleOutlined from '@ant-design/icons/InfoCircleOutlined';
+import UserOutlined from '@ant-design/icons/UserOutlined';
 import douyinIcon from '../assets/ui/douyin.webp';
 import redNoteIcon from '../assets/ui/red-note.webp';
 import thumbBqb from '../assets/bqb/thumb.webp';

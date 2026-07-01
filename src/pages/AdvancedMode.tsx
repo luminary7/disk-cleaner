@@ -1,15 +1,13 @@
 import { useState } from 'react';
 import { Layout, Menu, Button } from 'antd';
-import {
-  PieChartOutlined,
-  FormatPainterOutlined,
-  FileSearchOutlined,
-  RobotOutlined,
-  InfoCircleOutlined,
-  ArrowLeftOutlined,
-  AuditOutlined,
-  ReadOutlined,
-} from '@ant-design/icons';
+import PieChartOutlined from '@ant-design/icons/PieChartOutlined';
+import FormatPainterOutlined from '@ant-design/icons/FormatPainterOutlined';
+import FileSearchOutlined from '@ant-design/icons/FileSearchOutlined';
+import RobotOutlined from '@ant-design/icons/RobotOutlined';
+import InfoCircleOutlined from '@ant-design/icons/InfoCircleOutlined';
+import ArrowLeftOutlined from '@ant-design/icons/ArrowLeftOutlined';
+import AuditOutlined from '@ant-design/icons/AuditOutlined';
+import ReadOutlined from '@ant-design/icons/ReadOutlined';
 import SpaceOverview from './SpaceOverview';
 import CleanItems from './CleanItems';
 import LargeFiles from './LargeFiles';

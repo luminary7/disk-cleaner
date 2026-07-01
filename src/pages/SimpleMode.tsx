@@ -1,17 +1,15 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Button, Typography, Progress, Space, Alert, Modal, message } from 'antd';
-import {
-  ScanOutlined,
-  DeleteOutlined,
-  ReloadOutlined,
-  RightOutlined,
-  SafetyCertificateOutlined,
-  WarningOutlined,
-  LockOutlined,
-  FileTextOutlined,
-  DownOutlined,
-  FolderOpenOutlined,
-} from '@ant-design/icons';
+import ScanOutlined from '@ant-design/icons/ScanOutlined';
+import DeleteOutlined from '@ant-design/icons/DeleteOutlined';
+import ReloadOutlined from '@ant-design/icons/ReloadOutlined';
+import RightOutlined from '@ant-design/icons/RightOutlined';
+import SafetyCertificateOutlined from '@ant-design/icons/SafetyCertificateOutlined';
+import WarningOutlined from '@ant-design/icons/WarningOutlined';
+import LockOutlined from '@ant-design/icons/LockOutlined';
+import FileTextOutlined from '@ant-design/icons/FileTextOutlined';
+import DownOutlined from '@ant-design/icons/DownOutlined';
+import FolderOpenOutlined from '@ant-design/icons/FolderOpenOutlined';
 import gsap from 'gsap';
 import ParticleBackground from '../components/ParticleBackground';
 import DriveSelectModal from '../components/DriveSelectModal';

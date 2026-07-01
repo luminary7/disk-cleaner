@@ -1,13 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Card, Col, Row, Space, Spin, Table, Tag, Tooltip, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import ReactEChartsCore from 'echarts-for-react';
-import {
-  LockOutlined,
-  SafetyCertificateOutlined,
-  ScanOutlined,
-  WarningOutlined,
-} from '@ant-design/icons';
+import ReactEChartsCore from 'echarts-for-react/lib/core';
+import * as echarts from 'echarts/core';
+import { PieChart } from 'echarts/charts';
+import { TooltipComponent, GraphicComponent } from 'echarts/components';
+import { CanvasRenderer } from 'echarts/renderers';
+
+echarts.use([PieChart, TooltipComponent, GraphicComponent, CanvasRenderer]);
+import LockOutlined from '@ant-design/icons/LockOutlined';
+import SafetyCertificateOutlined from '@ant-design/icons/SafetyCertificateOutlined';
+import ScanOutlined from '@ant-design/icons/ScanOutlined';
+import WarningOutlined from '@ant-design/icons/WarningOutlined';
 import gsap from 'gsap';
 import FloatingLines from '../components/FloatingLines';
 import DriveSelectModal from '../components/DriveSelectModal';
@@ -621,7 +625,7 @@ export default function SpaceOverview() {
           <Row gutter={16} style={{ marginTop: 16 }}>
             <Col span={13}>
               <Card title="空间分布" styles={{ body: { minHeight: 388 } }}>
-                <ReactEChartsCore option={pieOption} style={{ height: 320 }} />
+                <ReactEChartsCore echarts={echarts} option={pieOption} style={{ height: 320 }} />
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 14px', padding: '0 10px 4px' }}>
                   {categories.map((cat) => (
                     <span key={cat.category} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#595959', fontSize: 12 }}>

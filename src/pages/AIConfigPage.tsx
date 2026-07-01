@@ -13,7 +13,9 @@ import {
 } from 'antd';
 import { PRESET_PROVIDERS, AGENS_LINKS } from '../shared/provider-config';
 import type { PresetProvider } from '../shared/provider-config';
-import { ArrowLeftOutlined, CheckCircleOutlined, LinkOutlined } from '@ant-design/icons';
+import ArrowLeftOutlined from '@ant-design/icons/ArrowLeftOutlined';
+import CheckCircleOutlined from '@ant-design/icons/CheckCircleOutlined';
+import LinkOutlined from '@ant-design/icons/LinkOutlined';
 
 const { Title } = Typography;
 

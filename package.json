@@ -69,7 +69,6 @@
 		"cross-env": "^10.1.0",
 		"electron": "^42.5.1",
 		"electron-builder": "^26.15.3",
-		"jsrepo": "^3.8.0",
 		"typescript": "^6.0.3",
 		"vite": "^8.1.0",
 		"wait-on": "^9.0.10"

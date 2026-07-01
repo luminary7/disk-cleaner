@@ -1,16 +1,14 @@
 import type { ReactNode } from 'react';
 import { Alert, Card, Divider, Space, Table, Tag, Tree, Typography } from 'antd';
-import {
-  CheckCircleOutlined,
-  ClockCircleOutlined,
-  DeleteOutlined,
-  FileProtectOutlined,
-  FileSearchOutlined,
-  FolderOpenOutlined,
-  LockOutlined,
-  SafetyCertificateOutlined,
-  WarningOutlined,
-} from '@ant-design/icons';
+import CheckCircleOutlined from '@ant-design/icons/CheckCircleOutlined';
+import ClockCircleOutlined from '@ant-design/icons/ClockCircleOutlined';
+import DeleteOutlined from '@ant-design/icons/DeleteOutlined';
+import FileProtectOutlined from '@ant-design/icons/FileProtectOutlined';
+import FileSearchOutlined from '@ant-design/icons/FileSearchOutlined';
+import FolderOpenOutlined from '@ant-design/icons/FolderOpenOutlined';
+import LockOutlined from '@ant-design/icons/LockOutlined';
+import SafetyCertificateOutlined from '@ant-design/icons/SafetyCertificateOutlined';
+import WarningOutlined from '@ant-design/icons/WarningOutlined';
 import type { ColumnsType } from 'antd/es/table';
 
 const { Title, Text, Paragraph } = Typography;

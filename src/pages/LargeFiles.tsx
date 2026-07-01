@@ -13,20 +13,18 @@ import {
   Descriptions,
   Spin,
 } from 'antd';
-import {
-  FileSearchOutlined,
-  DeleteOutlined,
-  FolderOpenOutlined,
-  RobotOutlined,
-  CheckCircleOutlined,
-  WarningOutlined,
-  LoadingOutlined,
-  ClockCircleOutlined,
-  DatabaseOutlined,
-  InboxOutlined,
-  PlaySquareOutlined,
-  FileTextOutlined,
-} from '@ant-design/icons';
+import FileSearchOutlined from '@ant-design/icons/FileSearchOutlined';
+import DeleteOutlined from '@ant-design/icons/DeleteOutlined';
+import FolderOpenOutlined from '@ant-design/icons/FolderOpenOutlined';
+import RobotOutlined from '@ant-design/icons/RobotOutlined';
+import CheckCircleOutlined from '@ant-design/icons/CheckCircleOutlined';
+import WarningOutlined from '@ant-design/icons/WarningOutlined';
+import LoadingOutlined from '@ant-design/icons/LoadingOutlined';
+import ClockCircleOutlined from '@ant-design/icons/ClockCircleOutlined';
+import DatabaseOutlined from '@ant-design/icons/DatabaseOutlined';
+import InboxOutlined from '@ant-design/icons/InboxOutlined';
+import PlaySquareOutlined from '@ant-design/icons/PlaySquareOutlined';
+import FileTextOutlined from '@ant-design/icons/FileTextOutlined';
 import largeFileImg from '../assets/ui-kit/large-file.webp';
 import type { ColumnsType } from 'antd/es/table';
 import DriveSelectModal from '../components/DriveSelectModal';
