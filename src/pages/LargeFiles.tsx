@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Card,
   Button,
@@ -21,7 +21,6 @@ import {
   CheckCircleOutlined,
   WarningOutlined,
   LoadingOutlined,
-  ReloadOutlined,
 } from '@ant-design/icons';
 import largeFileImg from '../assets/ui-kit/large-file.png';
 import type { ColumnsType } from 'antd/es/table';
@@ -128,15 +127,11 @@ export default function LargeFiles() {
     timerId?: any;
   } | null>(null);
 
-  // 仅监听增量批次，用于实时滚动展示
-  // 用 ref 防止 StrictMode 下重复注册导致文件重复
-  const listenerRegistered = useRef(false);
+  // 监听增量批次，用于实时滚动展示
   useEffect(() => {
     if (!window.electronAPI) return;
-    if (listenerRegistered.current) return;
-    listenerRegistered.current = true;
 
-    window.electronAPI.onLargeFileProgress((data) => {
+    const cleanup = window.electronAPI.onLargeFileProgress((data) => {
       if (data.batchItems && data.batchItems.length > 0) {
         setFiles(prev => {
           const existingIds = new Set(prev.map(i => i.id));
@@ -148,6 +143,8 @@ export default function LargeFiles() {
         });
       }
     });
+
+    return cleanup;
   }, []);
 
   // 文件或 AI 结果更新时自动取消勾选"两者都标记 keep"的项
@@ -300,10 +297,10 @@ export default function LargeFiles() {
   };
 
   // 获取文件的有效安全等级：优先 AI 裁定，其次规则引擎
-  const getEffectiveSafety = useCallback((item: ScanItem): string => {
+  const getEffectiveSafety = (item: ScanItem): string => {
     const ai = aiSafetyMap.get(item.id);
     return ai ? ai.safety : item.safety;
-  }, [aiSafetyMap]);
+  };
 
   const filteredFiles = files
     .filter((f) => typeFilter === 'all' || guessFileType(f.name) === typeFilter)
@@ -511,7 +508,7 @@ export default function LargeFiles() {
             onClick={handleBatchAnalysis}
             loading={!!batchProgress}
             disabled={!aiReady || loading}
-            title={!aiReady ? '请先在 AI 配置中设置 API Key' : loading ? '扫描中无法分析' : '每次分析一个最大的未评估文件'}
+            title={!aiReady ? '请先在 AI 配置中设置 API Key' : loading ? '扫描中无法分析' : '每次分析最多 10 个最大的未评估文件'}
             style={{ fontSize: 13 }}
           >
             {batchProgress ? batchProgress.currentItem : 'AI 批量分析'}
@@ -647,19 +644,6 @@ export default function LargeFiles() {
       </Card>
       )}
 
-      {/* 开发辅助：重载窗口（修改 electron/ 下文件后点击，替代重启） */}
-      {window.electronAPI?.reloadWindow && (
-        <div style={{ textAlign: 'right', marginTop: 8 }}>
-          <Button
-            type="link"
-            size="small"
-            icon={<ReloadOutlined />}
-            onClick={() => window.electronAPI!.reloadWindow()}
-          >
-            重载窗口（开发用）
-          </Button>
-        </div>
-      )}
 
       {/* 重要文件删除倒计时弹窗 */}
       <Modal

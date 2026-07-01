@@ -118,7 +118,9 @@ export default function SimpleMode({ onSwitchToAdvanced }: Props) {
   useEffect(() => {
     if (!window.electronAPI) return;
 
-    window.electronAPI.onScanProgress((data) => {
+    const cleanups: (() => void)[] = [];
+
+    cleanups.push(window.electronAPI.onScanProgress((data) => {
       setProgress({
         current: data.current,
         total: data.total,
@@ -132,46 +134,39 @@ export default function SimpleMode({ onSwitchToAdvanced }: Props) {
           return [...prev, ...newItems];
         });
       }
-    });
+    }));
 
-    window.electronAPI.onScanComplete((data) => {
+    cleanups.push(window.electronAPI.onScanComplete((data) => {
       setAllScanItems(data.items);
       setTotalScanSize(data.totalSize);
       setPhase('scan-done');
-    });
+    }));
 
-    window.electronAPI.onCleanProgress((data) => {
+    cleanups.push(window.electronAPI.onCleanProgress((data) => {
       setCleaningProgress({ current: data.current, total: data.total });
-    });
+    }));
 
-    window.electronAPI.onCleanComplete((data) => {
+    cleanups.push(window.electronAPI.onCleanComplete((data) => {
       setCleanResult({ freedBytes: data.freedBytes });
       setPhase('clean-done');
-    });
+    }));
 
-    window.electronAPI.onCleanCancelled((data) => {
+    cleanups.push(window.electronAPI.onCleanCancelled((data) => {
       pendingRestoreRef.current = data.completedItems;
-    });
+    }));
 
-    window.electronAPI.onRestoreProgress((data) => {
+    cleanups.push(window.electronAPI.onRestoreProgress((data) => {
       setRestoreProgress(data);
-    });
+    }));
 
-    window.electronAPI.onScanError((data) => {
+    cleanups.push(window.electronAPI.onScanError((data) => {
       setErrorMsg(data);
       setPhase('error');
-    });
+    }));
 
-    // 清理：组件卸载时移除所有 IPC 监听器，防止累积导致重复 key
+    // 清理：组件卸载时逐个移除 IPC 监听器
     return () => {
-      if (!window.electronAPI) return;
-      window.electronAPI.removeAllListeners('scan:progress');
-      window.electronAPI.removeAllListeners('scan:complete');
-      window.electronAPI.removeAllListeners('scan:error');
-      window.electronAPI.removeAllListeners('clean:progress');
-      window.electronAPI.removeAllListeners('clean:complete');
-      window.electronAPI.removeAllListeners('clean:cancelled');
-      window.electronAPI.removeAllListeners('clean:restore-progress');
+      cleanups.forEach(fn => fn());
     };
   }, []);
 

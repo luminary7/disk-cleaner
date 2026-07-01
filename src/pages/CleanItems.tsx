@@ -53,23 +53,30 @@ export default function CleanItems() {
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
   const pendingRestoreRef = useRef<ScanItem[]>([]);
 
-  // 仅监听增量批次，用于实时滚动展示
-  // 用 ref 防止 StrictMode 下重复注册导致文件重复
-  const listenerRegistered = useRef(false);
+  // 监听增量批次，用于实时滚动展示
   useEffect(() => {
     if (!window.electronAPI) return;
-    if (listenerRegistered.current) return;
-    listenerRegistered.current = true;
 
-    window.electronAPI.onScanProgress((data) => {
+    const cleanups: (() => void)[] = [];
+
+    cleanups.push(window.electronAPI.onScanProgress((data) => {
       if (data.batchItems && data.batchItems.length > 0) {
-        setItems(prev => [...prev, ...data.batchItems!]);
+        setItems(prev => {
+          const existingIds = new Set(prev.map(i => i.id));
+          const newItems = data.batchItems!.filter(i => !existingIds.has(i.id));
+          if (newItems.length === 0) return prev;
+          return [...prev, ...newItems];
+        });
       }
-    });
+    }));
 
-    window.electronAPI.onCleanCancelled((data) => {
+    cleanups.push(window.electronAPI.onCleanCancelled((data) => {
       pendingRestoreRef.current = data.completedItems;
-    });
+    }));
+
+    return () => {
+      cleanups.forEach(fn => fn());
+    };
   }, []);
 
   const handleScan = async () => {

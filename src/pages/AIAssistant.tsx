@@ -24,19 +24,11 @@ import {
   CheckCircleFilled,
   LinkOutlined,
 } from '@ant-design/icons';
+import { PRESET_PROVIDERS, AGENS_LINKS } from '../shared/provider-config';
+import type { PresetProvider } from '../shared/provider-config';
 import aiAnalysisImg from '../assets/ui-kit/ai-analysis.png';
 
 const { Title, Text } = Typography;
-const AGNES_SITE_URL = 'https://agnes-ai.com/';
-
-type PresetProvider = NonNullable<AIConfig['provider']>;
-
-const PRESET_PROVIDERS: Record<PresetProvider, { endpoint: string; model: string }> = {
-  deepseek: { endpoint: 'https://api.deepseek.com', model: 'deepseek-v4-flash' },
-  minimax: { endpoint: 'https://api.minimax.chat/v1', model: 'Minimax-M3' },
-  siliconflow: { endpoint: 'https://api.siliconflow.cn/v1', model: 'Qwen/Qwen2.5-7B-Instruct' },
-  agens: { endpoint: 'https://apihub.agnes-ai.com/v1/', model: 'agnes-2.0-flash' },
-};
 
 interface AIPreset extends AIConfig {
   name: string;
@@ -117,10 +109,7 @@ export default function AIAssistant() {
   };
 
   const getProviderLabel = (p?: string) => {
-    if (p === 'deepseek') return 'DeepSeek';
-    if (p === 'minimax') return 'MiniMax';
-    if (p === 'siliconflow') return '硅基流动';
-    if (p === 'agens') return 'Agnes AI';
+    if (p && p in PRESET_PROVIDERS) return PRESET_PROVIDERS[p as PresetProvider].label;
     return p || '自定义';
   };
 
@@ -250,9 +239,9 @@ export default function AIAssistant() {
   const handleOpenAgnesSite = async () => {
     try {
       if (window.electronAPI?.openExternal) {
-        await window.electronAPI.openExternal(AGNES_SITE_URL);
+        await window.electronAPI.openExternal(AGNES_LINKS.site);
       } else {
-        window.open(AGNES_SITE_URL, '_blank', 'noopener,noreferrer');
+        window.open(AGNES_LINKS.site, '_blank', 'noopener,noreferrer');
       }
     } catch {
       message.error('打开官网失败');

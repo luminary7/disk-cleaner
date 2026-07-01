@@ -1,5 +1,12 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
+// 辅助函数：注册 IPC 监听器并返回 cleanup 函数
+function onIpc(channel, callback) {
+  const handler = (_event, data) => callback(data);
+  ipcRenderer.on(channel, handler);
+  return () => ipcRenderer.removeListener(channel, handler);
+}
+
 contextBridge.exposeInMainWorld('electronAPI', {
   // 盘符检测
   detectDrives: () => ipcRenderer.invoke('drives:detect'),
@@ -7,42 +14,24 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // 扫描相关
   startScan: (drives) => ipcRenderer.invoke('scan:start', drives),
   cancelScan: () => ipcRenderer.invoke('scan:cancel'),
-  onScanProgress: (callback) => {
-    ipcRenderer.on('scan:progress', (_event, data) => callback(data));
-  },
-  onScanComplete: (callback) => {
-    ipcRenderer.on('scan:complete', (_event, data) => callback(data));
-  },
-  onScanError: (callback) => {
-    ipcRenderer.on('scan:error', (_event, data) => callback(data));
-  },
+  onScanProgress: (callback) => onIpc('scan:progress', callback),
+  onScanComplete: (callback) => onIpc('scan:complete', callback),
+  onScanError: (callback) => onIpc('scan:error', callback),
 
   // 清理相关
   executeClean: (items) => ipcRenderer.invoke('clean:execute', items),
   cancelClean: () => ipcRenderer.invoke('clean:cancel'),
   restoreItems: (items) => ipcRenderer.invoke('clean:restore', items),
-  onCleanProgress: (callback) => {
-    ipcRenderer.on('clean:progress', (_event, data) => callback(data));
-  },
-  onCleanComplete: (callback) => {
-    ipcRenderer.on('clean:complete', (_event, data) => callback(data));
-  },
-  onCleanCancelled: (callback) => {
-    ipcRenderer.on('clean:cancelled', (_event, data) => callback(data));
-  },
-  onRestoreProgress: (callback) => {
-    ipcRenderer.on('clean:restore-progress', (_event, data) => callback(data));
-  },
+  onCleanProgress: (callback) => onIpc('clean:progress', callback),
+  onCleanComplete: (callback) => onIpc('clean:complete', callback),
+  onCleanCancelled: (callback) => onIpc('clean:cancelled', callback),
+  onRestoreProgress: (callback) => onIpc('clean:restore-progress', callback),
 
   // 大文件扫描
   startLargeFileScan: (drives) => ipcRenderer.invoke('largefile:start', drives),
   cancelLargeFileScan: () => ipcRenderer.invoke('largefile:cancel'),
-  onLargeFileProgress: (callback) => {
-    ipcRenderer.on('largefile:progress', (_event, data) => callback(data));
-  },
-  onLargeFileComplete: (callback) => {
-    ipcRenderer.on('largefile:complete', (_event, data) => callback(data));
-  },
+  onLargeFileProgress: (callback) => onIpc('largefile:progress', callback),
+  onLargeFileComplete: (callback) => onIpc('largefile:complete', callback),
 
   // AI 相关
   testAIConnection: (config) => ipcRenderer.invoke('ai:test-connection', config),
@@ -53,9 +42,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   analyzeFiles: (files) => ipcRenderer.invoke('ai:analyze-files', files),
   analyzeSingleFile: (item) => ipcRenderer.invoke('ai:analyze-single-file', item),
   analyzeLargeFiles: (items) => ipcRenderer.invoke('ai:analyze-large-files', items),
-  onBatchAnalysisProgress: (callback) => {
-    ipcRenderer.on('ai:batch-progress', (_event, data) => callback(data));
-  },
+  onBatchAnalysisProgress: (callback) => onIpc('ai:batch-progress', callback),
   saveAIPreset: (preset) => ipcRenderer.invoke('ai:save-preset', preset),
   getAIPresets: () => ipcRenderer.invoke('ai:get-presets'),
   deleteAIPreset: (name) => ipcRenderer.invoke('ai:delete-preset', name),
@@ -83,9 +70,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openFileLocation: (filePath) => ipcRenderer.invoke('shell:open-file-location', filePath),
   openExternal: (url) => ipcRenderer.invoke('shell:open-external', url),
 
-  // IPC 监听器清理（组件卸载时移除指定通道的所有监听器）
+  // IPC 监听器清理（组件卸载时移除指定通道的所有监听器 — 保留向后兼容）
   removeAllListeners: (channel) => ipcRenderer.removeAllListeners(channel),
 
-  // 开发辅助：重载窗口（preload 变更后生效）
-  reloadWindow: () => ipcRenderer.invoke('app:reload'),
+  // 扩展预留
 });

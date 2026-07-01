@@ -33,8 +33,8 @@ class Store {
         fs.mkdirSync(dir, { recursive: true });
       }
       fs.writeFileSync(this.filePath, JSON.stringify(this.data, null, 2), 'utf-8');
-    } catch {
-      // 静默失败
+    } catch (err) {
+      console.error('[Store] 写入配置文件失败:', err.message);
     }
   }
 

@@ -277,8 +277,6 @@ async function startLargeFileScan(onProgress, drives = ['C:\\']) {
     });
   }
 
-  // totalSize 属性方便 UI 使用
-  largeFiles.totalSize = largeFiles.reduce((s, f) => s + f.size, 0);
   return largeFiles;
 }
 
