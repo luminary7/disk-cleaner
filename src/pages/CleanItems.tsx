@@ -11,7 +11,7 @@ import {
   Checkbox,
   Row,
 } from 'antd';
-import { ScanOutlined, DeleteOutlined, CloseCircleOutlined } from '@ant-design/icons';
+import { ScanOutlined, DeleteOutlined, CloseCircleOutlined, FolderOpenOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import safeCleanImg from '../assets/ui-kit/safe-clean.png';
 import tempCacheImg from '../assets/ui-kit/temp-cache.png';
@@ -292,19 +292,27 @@ export default function CleanItems() {
     {
       title: '操作',
       key: 'action',
-      width: 100,
+      width: 130,
       render: (_: unknown, record: ScanItem) => (
-        <Button
-          type="link"
-          size="small"
-          danger
-          icon={<DeleteOutlined />}
-          loading={deletingIds.has(record.id)}
-          disabled={record.safety === 'keep'}
-          onClick={() => handleSingleDelete(record)}
-        >
-          清理
-        </Button>
+        <Space size={0}>
+          <Button
+            type="link"
+            size="small"
+            icon={<FolderOpenOutlined />}
+            onClick={() => window.electronAPI?.openFileLocation(record.path)}
+          />
+          <Button
+            type="link"
+            size="small"
+            danger
+            icon={<DeleteOutlined />}
+            loading={deletingIds.has(record.id)}
+            disabled={record.safety === 'keep'}
+            onClick={() => handleSingleDelete(record)}
+          >
+            清理
+          </Button>
+        </Space>
       ),
     },
   ];

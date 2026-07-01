@@ -21,6 +21,11 @@ import {
   CheckCircleOutlined,
   WarningOutlined,
   LoadingOutlined,
+  ClockCircleOutlined,
+  DatabaseOutlined,
+  InboxOutlined,
+  PlaySquareOutlined,
+  FileTextOutlined,
 } from '@ant-design/icons';
 import largeFileImg from '../assets/ui-kit/large-file.png';
 import type { ColumnsType } from 'antd/es/table';
@@ -553,11 +558,11 @@ export default function LargeFiles() {
 
             <div style={{ marginTop: 40, display: 'flex', justifyContent: 'center', gap: 16, flexWrap: 'wrap' }}>
               {[
-                { label: '缓存文件', ext: 'tmp / log / cache', color: '#faad14' },
-                { label: '数据文件', ext: 'db / sqlite / mdb', color: '#ff4d4f' },
-                { label: '安装包', ext: 'zip / rar / iso', color: '#1677ff' },
-                { label: '视频文件', ext: 'mp4 / avi / mkv', color: '#722ed1' },
-                { label: '文档文件', ext: 'pdf / doc / csv', color: '#2f54eb' },
+                { label: '缓存文件', ext: 'tmp / log / cache', color: '#faad14', icon: <ClockCircleOutlined style={{ fontSize: 24, color: '#faad14' }} /> },
+                { label: '数据文件', ext: 'db / sqlite / mdb', color: '#ff4d4f', icon: <DatabaseOutlined style={{ fontSize: 24, color: '#ff4d4f' }} /> },
+                { label: '安装包', ext: 'zip / rar / iso', color: '#1677ff', icon: <InboxOutlined style={{ fontSize: 24, color: '#1677ff' }} /> },
+                { label: '视频文件', ext: 'mp4 / avi / mkv', color: '#722ed1', icon: <PlaySquareOutlined style={{ fontSize: 24, color: '#722ed1' }} /> },
+                { label: '文档文件', ext: 'pdf / doc / csv', color: '#2f54eb', icon: <FileTextOutlined style={{ fontSize: 24, color: '#2f54eb' }} /> },
               ].map((cat) => (
                 <div
                   key={cat.label}
@@ -573,6 +578,7 @@ export default function LargeFiles() {
                     minWidth: 100,
                   }}
                 >
+                  {cat.icon}
                   <div style={{ fontSize: 13, fontWeight: 500, color: cat.color }}>{cat.label}</div>
                   <div style={{ fontSize: 11, color: '#8c8c8c' }}>{cat.ext}</div>
                 </div>

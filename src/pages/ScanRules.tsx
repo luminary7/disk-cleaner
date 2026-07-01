@@ -1,102 +1,185 @@
-import { Card, Typography, Tag, Table, Divider, Space, Tree } from 'antd';
+import type { ReactNode } from 'react';
+import { Alert, Card, Divider, Space, Table, Tag, Tree, Typography } from 'antd';
 import {
-  SafetyCertificateOutlined,
-  LockOutlined,
-  WarningOutlined,
   CheckCircleOutlined,
-  QuestionCircleOutlined,
+  ClockCircleOutlined,
+  DeleteOutlined,
+  FileProtectOutlined,
+  FileSearchOutlined,
+  FolderOpenOutlined,
+  LockOutlined,
+  SafetyCertificateOutlined,
+  WarningOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 
 const { Title, Text, Paragraph } = Typography;
 
-function formatSize(bytes: number): string {
-  if (bytes >= 1073741824) return (bytes / 1073741824).toFixed(2) + ' GB';
-  if (bytes >= 1048576) return (bytes / 1048576).toFixed(1) + ' MB';
-  if (bytes >= 1024) return (bytes / 1024).toFixed(0) + ' KB';
-  return bytes + ' B';
-}
+type SafetyLevel = 'safe' | 'caution' | 'keep';
 
 interface SafetyRule {
-  level: string;
+  level: SafetyLevel;
+  label: string;
   color: string;
-  icon: React.ReactNode;
+  icon: ReactNode;
   desc: string;
+}
+
+interface ScopeRule {
+  key: string;
+  category: string;
+  name: string;
+  paths: string[];
+  rule: string;
+  safety: string;
+  color: string;
+}
+
+interface ExtensionRule {
+  key: string;
+  name: string;
+  exts: string;
+  safety: string;
+  color: string;
+  note: string;
 }
 
 const SAFETY_LEVELS: SafetyRule[] = [
   {
     level: 'safe',
+    label: '可安全清理',
     color: 'green',
     icon: <CheckCircleOutlined />,
-    desc: '可安全删除。仅默认清理明确缓存/临时目录中符合规则的项目。',
+    desc: '只用于明确的缓存、临时文件，并且满足时间阈值。默认一键清理只处理这一类。',
   },
   {
     level: 'caution',
+    label: '需要确认',
     color: 'gold',
     icon: <WarningOutlined />,
-    desc: '谨慎删除。需要人工确认，默认一键清理不会自动包含。',
+    desc: '可能可清理，但涉及系统缓存、近期缓存或用户目录。必须由用户显式确认。',
   },
   {
     level: 'keep',
+    label: '建议保留',
     color: 'red',
     icon: <LockOutlined />,
-    desc: '建议保留。普通清理入口会阻止删除，AI 也不能把它降级为可删。',
+    desc: '系统关键文件、高风险资源、未知类型等。普通清理入口会阻止删除。',
   },
 ];
 
-const CATEGORY_RULES = [
+const QUICK_SCAN_RULES: ScopeRule[] = [
   {
+    key: 'temp',
     category: 'temp',
-    label: '系统临时文件',
-    rule: '24 小时前的已知临时文件标记为 safe，近期文件标记为 caution',
-    paths: '用户临时目录 (%TMP%)',
+    name: '用户临时文件',
+    paths: ['%TEMP% / %TMP%'],
+    rule: '递归扫描，最大深度 8；空文件和小于 1KB 的文件不进入结果。',
+    safety: '24 小时以上 safe，否则 caution',
+    color: 'green',
   },
   {
+    key: 'browser',
     category: 'browser',
-    label: '浏览器缓存',
-    rule: '7 天前的缓存标记为 safe，7 天内的标记为 caution',
-    paths: 'Chrome / Edge / 360 浏览器 / IE 缓存目录',
+    name: '浏览器缓存',
+    paths: [
+      '%LOCALAPPDATA%\\Google\\Chrome\\User Data\\Default\\Cache\\Cache_Data',
+      '%LOCALAPPDATA%\\Google\\Chrome\\User Data\\Default\\Code Cache\\js',
+      '%LOCALAPPDATA%\\Microsoft\\Edge\\User Data\\Default\\Cache\\Cache_Data',
+      '%LOCALAPPDATA%\\360Chrome\\Chrome\\User Data\\Default\\Cache',
+      '%LOCALAPPDATA%\\360chrome\\Chrome\\User Data\\Default\\Cache',
+      '%LOCALAPPDATA%\\Microsoft\\Windows\\INetCache',
+    ],
+    rule: '只扫描这些缓存叶子目录中的文件；不存在或无权限的路径会跳过。',
+    safety: '7 天以上 safe，否则 caution',
+    color: 'blue',
   },
   {
+    key: 'app',
     category: 'app',
-    label: '应用缓存',
-    rule: '仅扫描已知缓存/日志/临时子目录，7 天前的缓存可标记为 safe',
-    paths: '微信 / QQ / 钉钉的 Cache / Code Cache / GPUCache / Logs / Temp 等子目录',
+    name: '应用缓存',
+    paths: [
+      '%APPDATA%\\Tencent\\WeChat\\Cache / Code Cache / GPUCache / logs / xlog',
+      '%APPDATA%\\Tencent\\QQ\\Cache / Code Cache / GPUCache / Logs / Temp',
+      '%APPDATA%\\DingTalk\\Cache / Code Cache / GPUCache / logs / Temp',
+    ],
+    rule: '仅进入已知缓存、日志、临时子目录，不扫描聊天文件、文档目录和应用数据根目录。',
+    safety: '7 天以上 safe，否则 caution',
+    color: 'purple',
   },
   {
+    key: 'system',
     category: 'system',
-    label: '系统缓存',
-    rule: '全部标记为 caution，需要用户确认',
-    paths: 'Windows Temp / Prefetch / 更新缓存 / 日志 / 缩略图 / 错误报告',
+    name: '系统缓存',
+    paths: [
+      '%WINDIR%\\Temp',
+      '%WINDIR%\\Prefetch',
+      '%WINDIR%\\SoftwareDistribution\\Download',
+      '%WINDIR%\\Logs',
+      '%LOCALAPPDATA%\\Microsoft\\Windows\\Explorer',
+      '%ProgramData%\\Microsoft\\Windows\\WER',
+    ],
+    rule: '只扫描 Windows 明确的缓存、日志、错误报告目录；系统核心目录永不进入扫描。',
+    safety: '统一 caution',
+    color: 'gold',
   },
   {
-    category: 'large-file',
-    label: '大文件',
-    rule: '大文件以发现和人工判断为主；压缩包/镜像为 caution，虚拟磁盘/游戏资源/未知类型为 keep',
-    paths: '各盘符根目录下 >50MB 的文件',
+    key: 'other-drive',
+    category: 'temp / app',
+    name: '非系统盘常见缓存',
+    paths: ['盘符根目录下的 Temp、Tmp、Cache、Logs'],
+    rule: '只识别根目录下的常见临时/缓存文件夹，不做整盘清理式扫描。',
+    safety: '按 temp / app 规则判定',
+    color: 'cyan',
   },
 ];
 
-const EXTENSION_COLUMNS: ColumnsType<{ name: string; exts: string; safety: string; color: string }> = [
-  { title: '分类', dataIndex: 'name', key: 'name', width: 140 },
-  { title: '后缀名', dataIndex: 'exts', key: 'exts' },
+const LARGE_FILE_RULES: ScopeRule[] = [
   {
-    title: '安全等级',
+    key: 'large-file',
+    category: 'large-file',
+    name: '大文件发现',
+    paths: ['所选盘符根目录下的一级目录，排除系统核心目录后递归扫描'],
+    rule: '最大深度 6；仅收集 50MB 及以上文件，用于发现空间占用，不做默认一键清理。',
+    safety: '大多数 caution；虚拟磁盘、游戏资源、高风险目录或未知类型 keep',
+    color: 'volcano',
+  },
+];
+
+const EXTENSION_COLUMNS: ColumnsType<ExtensionRule> = [
+  { title: '文件类型', dataIndex: 'name', key: 'name', width: 150 },
+  {
+    title: '后缀名',
+    dataIndex: 'exts',
+    key: 'exts',
+    render: (value) => <Text code style={{ whiteSpace: 'normal' }}>{value}</Text>,
+  },
+  {
+    title: '基础等级',
     dataIndex: 'safety',
     key: 'safety',
-    width: 100,
-    render: (v, record) => <Tag color={record.color}>{v}</Tag>,
+    width: 130,
+    render: (value, record) => <Tag color={record.color}>{value}</Tag>,
   },
+  { title: '说明', dataIndex: 'note', key: 'note', width: 260 },
 ];
 
-const EXTENSION_DATA = [
+const EXTENSION_DATA: ExtensionRule[] = [
   {
     key: 'system',
     name: '系统关键文件',
     exts: '.sys .ocx .drv .cpl',
     safety: 'keep',
     color: 'red',
+    note: '优先级最高，命中后直接建议保留。',
+  },
+  {
+    key: 'high-risk',
+    name: '高风险资源',
+    exts: '.vhd .vhdx .vmdk .qcow2 .pak .obb',
+    safety: 'keep',
+    color: 'red',
+    note: '常见于虚拟机、磁盘镜像、游戏资源，默认不清理。',
   },
   {
     key: 'exec',
@@ -104,48 +187,39 @@ const EXTENSION_DATA = [
     exts: '.dll .exe .msi .bat .cmd .ps1 .vbs',
     safety: 'caution',
     color: 'gold',
+    note: '可能是安装器或程序组件，必须确认。',
   },
   {
     key: 'package',
-    name: '安装包/压缩包',
+    name: '压缩包/镜像',
     exts: '.zip .rar .7z .tar .gz .bz2 .xz .iso .img',
-    safety: 'caution（大文件扫描）',
+    safety: 'caution',
     color: 'gold',
+    note: '大文件扫描中只提示，不自动清理。',
   },
   {
-    key: 'cache',
-    name: '缓存/临时文件',
-    exts: '.tmp .log .cache .bak .old .dmp .swp',
-    safety: '按目录/时间判定',
+    key: 'known-cache',
+    name: '已知缓存类型',
+    exts: '.tmp .log .cache .bak .old .dmp .swp 等',
+    safety: '按目录/时间',
     color: 'green',
+    note: '必须位于可清理目录，并满足时间阈值才可能为 safe。',
   },
   {
-    key: 'code',
-    name: '代码/配置',
-    exts: '.js .ts .css .html .json .xml .yaml .yml .txt .md .csv .ini .cfg',
-    safety: '按目录/时间判定',
+    key: 'user-data',
+    name: '媒体/文档/数据',
+    exts: '.png .jpg .mp4 .mp3 .db .pdf .docx .xlsx .pptx 等',
+    safety: '按目录保护',
     color: 'gold',
-  },
-  {
-    key: 'media',
-    name: '图片/视频/音频',
-    exts: '.png .jpg .jpeg .gif .svg .ico .bmp .webp .mp4 .avi .mkv .mov .wmv .flv .webm .mp3 .wav .flac .aac .ogg',
-    safety: '用户目录不 safe',
-    color: 'gold',
-  },
-  {
-    key: 'doc',
-    name: '文档/数据',
-    exts: '.db .sqlite .sqlite3 .pdf .doc .docx .xls .xlsx .ppt .pptx',
-    safety: '用户目录不 safe',
-    color: 'gold',
+    note: '在用户目录、大文件扫描中不会仅因体积或时间被当作 safe。',
   },
   {
     key: 'unknown',
-    name: '未知文件类型',
-    exts: '不在以上列表中的扩展名或无后缀文件',
+    name: '未知类型',
+    exts: '无后缀，或不在已知列表中的扩展名',
     safety: 'keep',
     color: 'red',
+    note: '未知意味着风险不可判断，规则默认保留。',
   },
 ];
 
@@ -188,146 +262,343 @@ const EXCLUDED_TREE_DATA = [
 
 const CAUTION_DIRECTORIES = [
   'AppData\\Roaming\\',
-  'Documents\\', 'Desktop\\', 'Downloads\\',
-  'Pictures\\', 'Videos\\', 'Music\\',
-  'Game\\', 'Games\\', 'Steam\\', 'SteamApps\\',
-  'Epic\\', 'Common\\', '_data\\',
-  'Minecraft\\', 'Projects\\', 'Backup\\',
-  'OneDrive\\', 'Dropbox\\',
-  'WSL\\', 'Node_Modules\\', 'Vendor\\',
-  'Python\\', 'Anaconda\\', 'Miniconda\\', 'Envs\\',
+  'Documents\\',
+  'Desktop\\',
+  'Downloads\\',
+  'Pictures\\',
+  'Videos\\',
+  'Music\\',
+  'Game\\',
+  'Games\\',
+  'Steam\\',
+  'SteamApps\\',
+  'Epic\\',
+  'Common\\',
+  '_data\\',
+  'Minecraft\\',
+  'Projects\\',
+  'Backup\\',
+  'OneDrive\\',
+  'Dropbox\\',
+  'WSL\\',
+  'Node_Modules\\',
+  'Vendor\\',
+  'Python\\',
+  'Anaconda\\',
+  'Miniconda\\',
+  'Envs\\',
 ];
+
+const CLEANUP_DIRECTORIES = [
+  'Temp',
+  'Tmp',
+  'Cache',
+  'Cache_Data',
+  'Code Cache',
+  'GPUCache',
+  'INetCache',
+  'Logs',
+  'xlog',
+  'Crash / Dumps',
+  'Thumbnails',
+  'Windows\\Temp',
+  'Windows\\Prefetch',
+  'SoftwareDistribution\\Download',
+  'Microsoft\\Windows\\WER',
+  'Microsoft\\Windows\\Explorer',
+];
+
+const DECISION_STEPS = [
+  {
+    title: '先排除危险区',
+    desc: '系统核心目录、程序安装目录、回收站、恢复分区等路径不进入普通扫描，也会在删除前再次拦截。',
+    icon: <LockOutlined />,
+    color: '#ff4d4f',
+  },
+  {
+    title: '再看文件类型',
+    desc: '系统关键扩展名和高风险资源直接 keep；可执行模块 caution；未知扩展名或无后缀文件 keep。',
+    icon: <FileProtectOutlined />,
+    color: '#fa8c16',
+  },
+  {
+    title: '最后结合目录和时间',
+    desc: '只有已知缓存/临时目录内的旧文件才可能 safe；近期文件、系统缓存和用户目录默认更保守。',
+    icon: <ClockCircleOutlined />,
+    color: '#1677ff',
+  },
+  {
+    title: '删除前重新复核',
+    desc: '清理时后端会重新校验路径和安全等级：safe 可清理，caution 要确认，keep 会被阻止。',
+    icon: <DeleteOutlined />,
+    color: '#52c41a',
+  },
+];
+
+function SafetyBadge({ level }: { level: SafetyLevel }) {
+  const rule = SAFETY_LEVELS.find((item) => item.level === level);
+  if (!rule) return null;
+  return (
+    <Tag color={rule.color} style={{ margin: 0 }}>
+      <Space size={4}>
+        {rule.icon}
+        {rule.label}
+      </Space>
+    </Tag>
+  );
+}
+
+function PathList({ paths }: { paths: string[] }) {
+  return (
+    <Space direction="vertical" size={2}>
+      {paths.map((item) => (
+        <Text key={item} code style={{ whiteSpace: 'normal' }}>
+          {item}
+        </Text>
+      ))}
+    </Space>
+  );
+}
+
+function ScopeSection({ title, data }: { title: string; data: ScopeRule[] }) {
+  const columns: ColumnsType<ScopeRule> = [
+    {
+      title: '类别',
+      dataIndex: 'name',
+      key: 'name',
+      width: 130,
+      render: (value, record) => (
+        <Space direction="vertical" size={2}>
+          <Tag color={record.color} style={{ width: 'fit-content' }}>{record.category}</Tag>
+          <Text strong>{value}</Text>
+        </Space>
+      ),
+    },
+    {
+      title: '扫描路径',
+      dataIndex: 'paths',
+      key: 'paths',
+      render: (paths) => <PathList paths={paths} />,
+    },
+    { title: '扫描方式', dataIndex: 'rule', key: 'rule', width: 260 },
+    {
+      title: '安全判定',
+      dataIndex: 'safety',
+      key: 'safety',
+      width: 190,
+      render: (value) => <Text>{value}</Text>,
+    },
+  ];
+
+  return (
+    <Card title={title} style={{ marginBottom: 16 }} styles={{ body: { paddingTop: 12 } }}>
+      <Table
+        dataSource={data}
+        columns={columns}
+        pagination={false}
+        size="small"
+        scroll={{ x: 900 }}
+      />
+    </Card>
+  );
+}
 
 export default function ScanRules() {
   return (
-    <div style={{ maxWidth: 900, margin: '0 auto' }}>
-      <Space align="center" style={{ marginBottom: 20 }}>
-        <SafetyCertificateOutlined style={{ fontSize: 28, color: '#1677ff' }} />
-        <Title level={4} style={{ margin: 0 }}>扫描规则说明</Title>
-      </Space>
-
-      {/* 安全等级总览 */}
-      <Card title="安全等级总览" style={{ marginBottom: 16 }}>
-        {SAFETY_LEVELS.map((s) => (
-          <div
-            key={s.level}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              padding: '10px 0',
-              borderBottom: '1px solid #f5f5f5',
-            }}
-          >
-            <Tag color={s.color} style={{ fontSize: 13, padding: '2px 10px' }}>
-              <Space size={4}>
-                {s.icon}
-                {s.level === 'safe' ? '可安全删除' : s.level === 'caution' ? '谨慎删除' : '建议保留'}
-              </Space>
-            </Tag>
-            <Text style={{ fontSize: 13, color: '#595959' }}>{s.desc}</Text>
+    <div style={{ maxWidth: 1120, margin: '0 auto' }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          justifyContent: 'space-between',
+          gap: 24,
+          marginBottom: 18,
+        }}
+      >
+        <Space align="start" size={14}>
+          <SafetyCertificateOutlined style={{ fontSize: 32, color: '#1677ff', marginTop: 2 }} />
+          <div>
+            <Title level={3} style={{ margin: 0 }}>扫描规则与安全边界</Title>
+            <Paragraph type="secondary" style={{ margin: '6px 0 0', maxWidth: 720 }}>
+              当前规则采用“保守优先”的策略：扫描范围限定在明确的缓存、临时、日志和错误报告目录；
+              能确认可再生成的旧文件才会标记为 safe，不能确认的文件宁可保留或要求人工确认。
+            </Paragraph>
           </div>
-        ))}
-      </Card>
-
-      {/* 扫描范围 */}
-      <Card title="扫描目录" style={{ marginBottom: 16 }}>
-        <Paragraph type="secondary" style={{ fontSize: 13, marginBottom: 12 }}>
-          扫描引擎遍历以下目录，收集文件交由规则引擎判定安全等级：
-        </Paragraph>
-        {CATEGORY_RULES.map((cat) => (
-          <div
-            key={cat.category}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 12,
-              padding: '8px 0',
-              borderBottom: '1px solid #f5f5f5',
-              fontSize: 13,
-            }}
-          >
-            <Tag style={{ flexShrink: 0, margin: 0, width: 100, textAlign: 'center' }}>
-              {cat.label}
-            </Tag>
-            <div>
-              <Text style={{ color: '#262626' }}>{cat.rule}</Text>
-              <br />
-              <Text type="secondary" style={{ fontSize: 12 }}>路径: {cat.paths}</Text>
-            </div>
-          </div>
-        ))}
-      </Card>
-
-      {/* 排除目录 */}
-      <div style={{ display: 'flex', gap: 16, marginBottom: 16 }}>
-        <Card title="永不扫描的目录 (keep)" style={{ flex: 1 }}>
-          <Tree
-            treeData={EXCLUDED_TREE_DATA}
-            showLine
-            defaultExpandedKeys={['C:', 'Windows']}
-            style={{ fontFamily: 'monospace', fontSize: 13 }}
-          />
-          <Divider style={{ margin: '8px 0' }} />
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            位于这些目录下的文件不会出现在扫描结果中，也不能被删除
-          </Text>
-        </Card>
-        <Card title="谨慎处理目录 (caution)" style={{ flex: 1 }}>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-            {CAUTION_DIRECTORIES.map((dir) => (
-              <Tag key={dir} color="gold" style={{ fontSize: 11, margin: 2 }}>
-                {dir.replace(/\\/g, '')}
-              </Tag>
-            ))}
-          </div>
-          <Divider style={{ margin: '8px 0' }} />
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            位于这些目录下的文件不会仅因时间较久而标记为 safe；已知缓存子目录除外
-          </Text>
-        </Card>
+        </Space>
+        <SafetyBadge level="safe" />
       </div>
 
-      {/* 扩展名规则 */}
+      <Alert
+        type="success"
+        showIcon
+        message="默认一键清理只处理 safe 项"
+        description="caution 项需要在界面中逐项或批量确认；keep 项会被普通清理入口阻止。所有清理动作都会移入回收站，并在后端删除前再次复核路径和安全等级。"
+        style={{ marginBottom: 16 }}
+      />
+
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+          gap: 12,
+          marginBottom: 16,
+        }}
+      >
+        {SAFETY_LEVELS.map((rule) => (
+          <Card key={rule.level} size="small" styles={{ body: { minHeight: 122 } }}>
+            <Space direction="vertical" size={8}>
+              <SafetyBadge level={rule.level} />
+              <Text style={{ color: '#595959', lineHeight: 1.7 }}>{rule.desc}</Text>
+            </Space>
+          </Card>
+        ))}
+      </div>
+
+      <ScopeSection title="快速扫描范围" data={QUICK_SCAN_RULES} />
+      <ScopeSection title="大文件扫描范围" data={LARGE_FILE_RULES} />
+
+      <Card title="安全判定顺序" style={{ marginBottom: 16 }}>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+            gap: 12,
+          }}
+        >
+          {DECISION_STEPS.map((step, index) => (
+            <div
+              key={step.title}
+              style={{
+                border: '1px solid #f0f0f0',
+                borderRadius: 8,
+                padding: 14,
+                background: '#fff',
+                minHeight: 138,
+              }}
+            >
+              <Space align="start" size={10}>
+                <div style={{ color: step.color, fontSize: 20, lineHeight: 1 }}>{step.icon}</div>
+                <div>
+                  <Text type="secondary" style={{ fontSize: 12 }}>优先级 {index + 1}</Text>
+                  <div style={{ marginTop: 2 }}>
+                    <Text strong>{step.title}</Text>
+                  </div>
+                  <Paragraph type="secondary" style={{ margin: '6px 0 0', fontSize: 13 }}>
+                    {step.desc}
+                  </Paragraph>
+                </div>
+              </Space>
+            </div>
+          ))}
+        </div>
+      </Card>
+
       <Card title="文件扩展名规则" style={{ marginBottom: 16 }}>
         <Paragraph type="secondary" style={{ fontSize: 13, marginBottom: 12 }}>
-          根据文件后缀名决定基础安全等级，再结合所在分类和目录进行微调：
+          后缀名只决定基础风险，最终等级还会结合扫描类别、所在目录和文件修改时间。未知类型默认保留。
         </Paragraph>
         <Table
           dataSource={EXTENSION_DATA}
           columns={EXTENSION_COLUMNS}
           pagination={false}
           size="small"
+          scroll={{ x: 900 }}
         />
       </Card>
 
-      {/* 未知文件保护 */}
-      <Card title="未知文件保护机制">
-        <Space align="start" size={12}>
-          <QuestionCircleOutlined style={{ fontSize: 22, color: '#ff4d4f' }} />
-          <div>
-            <Text strong style={{ color: '#262626' }}>不在已知扩展名列表中的文件 → 标记为 keep</Text>
-            <br />
-            <Text type="secondary" style={{ fontSize: 13 }}>
-              当扫描到不认识的扩展名时（可能是游戏资源、专有格式、用户数据等），
-              规则引擎会保守地将其标记为「建议保留」，避免误删。此规则优先于所有分类规则。
-            </Text>
-          </div>
-        </Space>
-      </Card>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+          gap: 16,
+          marginBottom: 16,
+        }}
+      >
+        <Card title="永不扫描的系统区域">
+          <Tree
+            treeData={EXCLUDED_TREE_DATA}
+            showLine
+            defaultExpandedKeys={['C:', 'Windows']}
+            style={{ fontFamily: 'monospace', fontSize: 13 }}
+          />
+          <Divider style={{ margin: '12px 0' }} />
+          <Text type="secondary" style={{ fontSize: 13 }}>
+            这些路径属于系统核心、程序安装、恢复或回收站区域。扫描时跳过，清理前也会再次拦截。
+          </Text>
+        </Card>
 
-      <Card title="删除前复核机制" style={{ marginTop: 16 }}>
-        <Space align="start" size={12}>
-          <LockOutlined style={{ fontSize: 22, color: '#ff4d4f' }} />
-          <div>
-            <Text strong style={{ color: '#262626' }}>后端会在移入回收站前重新校验路径和安全等级</Text>
-            <br />
+        <Card title="用户数据与缓存目录的区别">
+          <Space direction="vertical" size={10}>
+            <div>
+              <Space size={8} style={{ marginBottom: 6 }}>
+                <WarningOutlined style={{ color: '#faad14' }} />
+                <Text strong>谨慎目录</Text>
+              </Space>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {CAUTION_DIRECTORIES.map((dir) => (
+                  <Tag key={dir} color="gold" style={{ margin: 0 }}>
+                    {dir}
+                  </Tag>
+                ))}
+              </div>
+            </div>
+            <Divider style={{ margin: '4px 0' }} />
+            <div>
+              <Space size={8} style={{ marginBottom: 6 }}>
+                <FolderOpenOutlined style={{ color: '#1677ff' }} />
+                <Text strong>可清理目录标记</Text>
+              </Space>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {CLEANUP_DIRECTORIES.map((dir) => (
+                  <Tag key={dir} color="blue" style={{ margin: 0 }}>
+                    {dir}
+                  </Tag>
+                ))}
+              </div>
+            </div>
             <Text type="secondary" style={{ fontSize: 13 }}>
-              safe 项可默认清理；caution 项必须由界面显式确认；keep 项会被普通清理入口阻止。
-              AI 分析只作为辅助参考，可以提高风险等级，但不能把 keep 项降级为可删除。
+              用户目录不会仅因“体积大”或“时间久”被标记为 safe；只有明确命中缓存、日志、临时目录的项目，才会继续按时间阈值降级为 safe。
             </Text>
-          </div>
-        </Space>
+          </Space>
+        </Card>
+      </div>
+
+      <Card title="删除前复核与 AI 安全边界">
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+            gap: 12,
+          }}
+        >
+          <Space align="start" size={10}>
+            <DeleteOutlined style={{ fontSize: 20, color: '#52c41a', marginTop: 2 }} />
+            <div>
+              <Text strong>只进回收站</Text>
+              <Paragraph type="secondary" style={{ margin: '4px 0 0', fontSize: 13 }}>
+                当前清理使用系统回收站，不做直接永久删除。
+              </Paragraph>
+            </div>
+          </Space>
+          <Space align="start" size={10}>
+            <LockOutlined style={{ fontSize: 20, color: '#ff4d4f', marginTop: 2 }} />
+            <div>
+              <Text strong>后端二次校验</Text>
+              <Paragraph type="secondary" style={{ margin: '4px 0 0', fontSize: 13 }}>
+                清理前重新检查路径、盘符根目录、排除目录和安全等级。
+              </Paragraph>
+            </div>
+          </Space>
+          <Space align="start" size={10}>
+            <FileSearchOutlined style={{ fontSize: 20, color: '#1677ff', marginTop: 2 }} />
+            <div>
+              <Text strong>AI 只做参考</Text>
+              <Paragraph type="secondary" style={{ margin: '4px 0 0', fontSize: 13 }}>
+                AI 可以提示更高风险，但不能把 keep 降级为可删除。
+              </Paragraph>
+            </div>
+          </Space>
+        </div>
       </Card>
     </div>
   );

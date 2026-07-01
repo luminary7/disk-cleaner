@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import {
   Card,
   Button,
+  Switch,
   Radio,
   Input,
   Typography,
@@ -14,17 +15,17 @@ import {
   Modal,
   Tag,
   Popconfirm,
+  Empty,
 } from 'antd';
 import {
   RobotOutlined,
   CheckCircleOutlined,
-  StarOutlined,
-  DeleteOutlined,
   PlusOutlined,
   CheckCircleFilled,
+  DeleteOutlined,
   LinkOutlined,
 } from '@ant-design/icons';
-import { PRESET_PROVIDERS, AGENS_LINKS } from '../shared/provider-config';
+import { PRESET_PROVIDERS } from '../shared/provider-config';
 import type { PresetProvider } from '../shared/provider-config';
 import aiAnalysisImg from '../assets/ui-kit/ai-analysis.png';
 
@@ -35,77 +36,50 @@ interface AIPreset extends AIConfig {
 }
 
 export default function AIAssistant() {
-  const [mode, setMode] = useState<'disabled' | 'preset' | 'custom'>('disabled');
+  const [aiEnabled, setAiEnabled] = useState(false);
+  const [presets, setPresets] = useState<AIPreset[]>([]);
+  const [activePresetName, setActivePresetName] = useState('');
+
+  // 弹窗表单
+  const [modalOpen, setModalOpen] = useState(false);
+  const [mode, setMode] = useState<'preset' | 'custom'>('preset');
   const [provider, setProvider] = useState<PresetProvider>('deepseek');
+  const [endpoint, setEndpoint] = useState('');
+  const [model, setModel] = useState('');
   const [apiKey, setApiKey] = useState('');
-  const [customEndpoint, setCustomEndpoint] = useState('');
-  const [customModel, setCustomModel] = useState('');
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [saving, setSaving] = useState(false);
-  const [isConfigured, setIsConfigured] = useState(false);
-
-  // 配置预设相关
-  const [presets, setPresets] = useState<AIPreset[]>([]);
-  const [presetModalOpen, setPresetModalOpen] = useState(false);
   const [presetName, setPresetName] = useState('');
-  const [activePresetName, setActivePresetName] = useState('');
 
-  useEffect(() => {
-    (async () => {
-      if (!window.electronAPI) return;
-      try {
-        const config = await window.electronAPI.getAIConfig();
-        setMode(config.mode || 'disabled');
-        setProvider(config.provider || 'deepseek');
-        setApiKey(config.apiKey || '');
-        setCustomEndpoint(config.endpoint || '');
-        setCustomModel(config.model || '');
-        setIsConfigured(config.mode !== 'disabled' && !!config.apiKey);
-      } catch {
-        // ignore
-      }
-    })();
-  }, []);
-
-  // 加载预设列表和当前启用预设
   useEffect(() => {
     loadPresets();
     loadActivePreset();
+    loadConfig();
   }, []);
+
+  const loadConfig = async () => {
+    if (!window.electronAPI) return;
+    try {
+      const config = await window.electronAPI.getAIConfig();
+      setAiEnabled(config.mode !== 'disabled' && !!config.apiKey);
+    } catch { /* ignore */ }
+  };
 
   const loadPresets = async () => {
     if (!window.electronAPI) return;
-    if (!window.electronAPI.getAIPresets) return;
     try {
       const list = await window.electronAPI.getAIPresets();
       setPresets(list || []);
-    } catch {
-      // 静默忽略
-    }
+    } catch { /* ignore */ }
   };
 
   const loadActivePreset = async () => {
     if (!window.electronAPI) return;
-    if (!window.electronAPI.getActivePreset) return;
     try {
       const name = await window.electronAPI.getActivePreset();
       setActivePresetName(name || '');
-    } catch {
-      // 静默忽略
-    }
-  };
-
-  const getEndpoint = () => {
-    if (mode === 'preset') return PRESET_PROVIDERS[provider].endpoint;
-    if (mode === 'custom') return customEndpoint;
-    return '';
-  };
-
-  const getModel = () => {
-    if (mode === 'preset') return PRESET_PROVIDERS[provider].model;
-    if (mode === 'custom') return customModel;
-    return '';
+    } catch { /* ignore */ }
   };
 
   const getProviderLabel = (p?: string) => {
@@ -113,21 +87,37 @@ export default function AIAssistant() {
     return p || '自定义';
   };
 
+  const maskApiKey = (key?: string) => {
+    if (!key || key.length < 8) return '****';
+    return key.slice(0, 4) + '****' + key.slice(-4);
+  };
+
+  const handleModeChange = (newMode: 'preset' | 'custom') => {
+    setMode(newMode);
+    if (newMode === 'preset') {
+      setEndpoint(PRESET_PROVIDERS[provider].endpoint);
+      setModel(PRESET_PROVIDERS[provider].model);
+    }
+  };
+
+  const handleProviderChange = (newProvider: PresetProvider) => {
+    setProvider(newProvider);
+    setEndpoint(PRESET_PROVIDERS[newProvider].endpoint);
+    setModel(PRESET_PROVIDERS[newProvider].model);
+  };
+
   const handleTest = async () => {
     if (!window.electronAPI) return;
-    if (mode !== 'disabled' && !apiKey) {
-      message.warning('请先输入 API Key');
-      return;
-    }
+    if (!apiKey) { message.warning('请先输入 API Key'); return; }
     setTesting(true);
     setTestResult(null);
     try {
       const result = await window.electronAPI.testAIConnection({
         mode,
-        provider,
-        endpoint: getEndpoint(),
+        provider: mode === 'preset' ? provider : undefined,
+        endpoint,
         apiKey,
-        model: getModel(),
+        model,
       });
       setTestResult(result);
     } catch {
@@ -139,21 +129,27 @@ export default function AIAssistant() {
 
   const handleSave = async () => {
     if (!window.electronAPI) return;
-    if (mode !== 'disabled' && !apiKey) {
-      message.warning('请输入 API Key');
-      return;
-    }
+    if (!apiKey) { message.warning('请输入 API Key'); return; }
     setSaving(true);
     try {
-      await window.electronAPI.saveAIConfig({
-        mode,
+      const config = {
+        mode: mode as AIConfig['mode'],
         provider: mode === 'preset' ? provider : undefined,
-        endpoint: getEndpoint(),
+        endpoint,
         apiKey,
-        model: getModel(),
-      });
-      setIsConfigured(mode !== 'disabled' && !!apiKey);
+        model,
+      };
+      await window.electronAPI.saveAIConfig(config);
+      // 同时保存为预设
+      if (presetName.trim()) {
+        await window.electronAPI.saveAIPreset({ name: presetName.trim(), ...config });
+      }
       message.success('配置已保存');
+      setModalOpen(false);
+      await loadPresets();
+      await loadActivePreset();
+      setAiEnabled(true);
+      resetForm();
     } catch {
       message.error('保存失败');
     } finally {
@@ -161,291 +157,167 @@ export default function AIAssistant() {
     }
   };
 
-  // 保存为预设
-  const handleSavePreset = async () => {
-    if (!presetName.trim()) {
-      message.warning('请输入预设名称');
-      return;
-    }
-    if (!window.electronAPI) return;
-    if (!window.electronAPI.saveAIPreset) {
-      message.error('保存预设失败：Electron 预加载脚本未更新，请关闭应用后重新启动');
-      return;
-    }
-    try {
-      await window.electronAPI.saveAIPreset({
-        name: presetName.trim(),
-        mode,
-        provider: mode === 'preset' ? provider : undefined,
-        endpoint: getEndpoint(),
-        apiKey,
-        model: getModel(),
-      });
-      message.success('预设已保存');
-      setPresetModalOpen(false);
-      setPresetName('');
-      loadPresets();
-    } catch (e) {
-      message.error(`保存预设失败：${e instanceof Error ? e.message : '未知错误'}`);
-    }
-  };
-
-  // 应用预设
   const handleApplyPreset = async (preset: AIPreset) => {
     if (!window.electronAPI) return;
-    setMode(preset.mode);
-    if (preset.mode === 'preset') {
-      setProvider(preset.provider || 'deepseek');
-    }
-    setCustomEndpoint(preset.endpoint || '');
-    setCustomModel(preset.model || '');
-    setApiKey(preset.apiKey || '');
-    setTestResult(null);
     try {
       await window.electronAPI.saveAIConfig(preset);
-      setIsConfigured(preset.mode !== 'disabled' && !!preset.apiKey);
-      // 记录当前启用预设
       if (window.electronAPI.saveActivePreset) {
         await window.electronAPI.saveActivePreset(preset.name);
       }
       setActivePresetName(preset.name);
+      setAiEnabled(true);
       message.success(`已启用配置: ${preset.name}`);
-    } catch (e) {
-      message.error(`应用配置失败：${e instanceof Error ? e.message : '未知错误'}`);
+    } catch {
+      message.error('应用配置失败');
     }
   };
 
-  // 删除预设
   const handleDeletePreset = async (name: string) => {
     if (!window.electronAPI) return;
-    if (!window.electronAPI.deleteAIPreset) {
-      message.error('删除失败：Electron 预加载脚本未更新，请关闭应用后重新启动');
-      return;
-    }
     try {
       await window.electronAPI.deleteAIPreset(name);
       message.success('预设已删除');
       loadPresets();
-    } catch (e) {
-      message.error(`删除失败：${e instanceof Error ? e.message : '未知错误'}`);
-    }
-  };
-
-  const maskApiKey = (key?: string) => {
-    if (!key || key.length < 8) return '****';
-    return key.slice(0, 4) + '****' + key.slice(-4);
-  };
-
-  const handleOpenAgnesSite = async () => {
-    try {
-      if (window.electronAPI?.openExternal) {
-        await window.electronAPI.openExternal(AGNES_LINKS.site);
-      } else {
-        window.open(AGNES_LINKS.site, '_blank', 'noopener,noreferrer');
+      if (name === activePresetName) {
+        setActivePresetName('');
       }
     } catch {
-      message.error('打开官网失败');
+      message.error('删除失败');
     }
   };
+
+  const handleSwitchChange = async (checked: boolean) => {
+    setAiEnabled(checked);
+    if (!checked && window.electronAPI) {
+      await window.electronAPI.saveAIConfig({ mode: 'disabled', apiKey: '' });
+    }
+  };
+
+  const resetForm = () => {
+    setMode('preset');
+    setProvider('deepseek');
+    setEndpoint(PRESET_PROVIDERS.deepseek.endpoint);
+    setModel(PRESET_PROVIDERS.deepseek.model);
+    setApiKey('');
+    setTestResult(null);
+    setPresetName('');
+  };
+
+  const openAddModal = () => {
+    resetForm();
+    setModalOpen(true);
+  };
+
+  const showEmpty = !aiEnabled || presets.length === 0;
 
   return (
     <div>
+      {/* 顶栏 */}
       <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
         <Space>
           <img src={aiAnalysisImg} alt="AI 助手" style={{ width: 32, height: 32, borderRadius: 6 }} />
           <Title level={4} style={{ margin: 0 }}>AI 助手设置</Title>
         </Space>
         <Space>
-          {isConfigured && (
-            <Alert
-              type="success"
-              message="AI 已配置"
-              showIcon
-              style={{ padding: '4px 12px' }}
-            />
-          )}
+          <Space>
+            <Text strong>启用 AI</Text>
+            <Switch checked={aiEnabled} onChange={handleSwitchChange} />
+          </Space>
+          <Button type="primary" icon={<PlusOutlined />} onClick={openAddModal}>
+            添加 API 配置
+          </Button>
         </Space>
       </Row>
 
-      <Card>
-        <Form layout="vertical">
-          <Form.Item label="AI 模式">
-            <Radio.Group value={mode} onChange={(e) => setMode(e.target.value)}>
-              <Radio.Button value="disabled">不启用 AI</Radio.Button>
-              <Radio.Button value="preset">预置提供商</Radio.Button>
-              <Radio.Button value="custom">自定义 OpenAI 兼容</Radio.Button>
-            </Radio.Group>
-          </Form.Item>
-
-          {mode !== 'disabled' && (
-            <>
-              {mode === 'preset' && (
-                <>
-                  <Form.Item label="选择提供商">
-                    <Radio.Group
-                      value={provider}
-                      onChange={(e) => setProvider(e.target.value)}
-                    >
-                      <Radio value="deepseek">DeepSeek</Radio>
-                      <Radio value="minimax">MiniMax</Radio>
-                      <Radio value="siliconflow">硅基流动</Radio>
-                      <Radio value="agens">Agnes AI（免费）</Radio>
-                    </Radio.Group>
-                  </Form.Item>
-                  {provider === 'agens' && (
-                    <Form.Item>
-                      <Button
-                        icon={<LinkOutlined />}
-                        onClick={handleOpenAgnesSite}
-                      >
-                        访问官网
-                      </Button>
-                    </Form.Item>
-                  )}
-                  <Form.Item label="API Endpoint">
-                    <Input value={PRESET_PROVIDERS[provider].endpoint} disabled />
-                  </Form.Item>
-                  <Form.Item label="模型">
-                    <Input value={PRESET_PROVIDERS[provider].model} disabled />
-                  </Form.Item>
-                </>
-              )}
-
-              {mode === 'custom' && (
-                <>
-                  <Form.Item label="API Endpoint" required>
-                    <Input
-                      value={customEndpoint}
-                      onChange={(e) => setCustomEndpoint(e.target.value)}
-                      placeholder="https://api.example.com/v1"
-                    />
-                  </Form.Item>
-                  <Form.Item label="模型名称" required>
-                    <Input
-                      value={customModel}
-                      onChange={(e) => setCustomModel(e.target.value)}
-                      placeholder="gpt-4o / claude-3-sonnet / ..."
-                    />
-                  </Form.Item>
-                </>
-              )}
-
-              <Form.Item label="API Key" required>
-                <Input.Password
-                  value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
-                  placeholder="sk-..."
-                />
-              </Form.Item>
-
-              <Space>
-                <Button onClick={handleTest} loading={testing}>
-                  测试连接
-                </Button>
-                {testResult && (
-                  <Alert
-                    type={testResult.success ? 'success' : 'error'}
-                    message={testResult.message}
-                    showIcon
-                    style={{ padding: '4px 12px' }}
-                  />
-                )}
-              </Space>
-
-              <Divider />
-            </>
-          )}
-
-          <Space>
-            <Button
-              type="primary"
-              icon={<CheckCircleOutlined />}
-              onClick={handleSave}
-              loading={saving}
-            >
-              保存配置
-            </Button>
-            {mode !== 'disabled' && (
-              <Button icon={<PlusOutlined />} onClick={() => setPresetModalOpen(true)}>
-                保存为预设
+      {/* 空状态 */}
+      {showEmpty ? (
+        <Card>
+          <Empty
+            image={aiAnalysisImg}
+            imageStyle={{ height: 120, marginTop: 20 }}
+            description={
+              !aiEnabled
+                ? 'AI 功能未启用，开启后可管理 API 配置'
+                : '暂无 API 配置，点击右上角添加'
+            }
+          >
+            {!aiEnabled ? (
+              <Button type="primary" onClick={() => handleSwitchChange(true)}>
+                启用 AI
+              </Button>
+            ) : (
+              <Button type="primary" icon={<PlusOutlined />} onClick={openAddModal}>
+                添加 API 配置
               </Button>
             )}
-          </Space>
-        </Form>
-      </Card>
-
-      {/* 预设配置列表 — 仅在启用 AI 时显示 */}
-      {mode !== 'disabled' && presets.length > 0 && (
+          </Empty>
+        </Card>
+      ) : (
+        /* 已保存的配置预设列表 */
         <>
-          <Divider />
           <Title level={5} style={{ marginBottom: 12 }}>
-            <StarOutlined style={{ marginRight: 8 }} />
             已保存的配置预设
           </Title>
-          <Space orientation="vertical" style={{ width: '100%' }}>
+          <Space direction="vertical" style={{ width: '100%' }}>
             {presets.map((item) => {
               const isActive = item.name === activePresetName;
+              const providerInfo = item.provider && item.provider in PRESET_PROVIDERS
+                ? PRESET_PROVIDERS[item.provider as PresetProvider]
+                : null;
+
               return (
                 <Card
                   key={item.name}
                   size="small"
-                  styles={{
-                    body: { padding: '12px 16px' },
-                  }}
+                  styles={{ body: { padding: 16 } }}
                   style={{
                     border: isActive ? '2px solid #1677ff' : '1px solid #f0f0f0',
                     background: isActive ? '#f0f5ff' : '#fff',
                   }}
                 >
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                    }}
-                  >
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <Space style={{ marginBottom: 4 }}>
-                        {isActive && (
-                          <CheckCircleFilled style={{ color: '#1677ff', fontSize: 16 }} />
-                        )}
-                        <Text strong={isActive}>{item.name}</Text>
-                        <Tag color="blue">{getProviderLabel(item.provider)}</Tag>
-                        {item.model && <Text type="secondary">{item.model}</Text>}
-                      </Space>
-                      <div>
-                        <Text type="secondary" style={{ fontSize: 12 }}>
-                          {item.endpoint}
-                        </Text>
-                        <Text type="secondary" style={{ fontSize: 12, marginLeft: 12 }}>
-                          API Key: {maskApiKey(item.apiKey)}
-                        </Text>
-                      </div>
-                    </div>
-                    <Space style={{ marginLeft: 16, flexShrink: 0 }}>
+                  {/* 预设头部 */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                    <Space>
+                      {isActive && <CheckCircleFilled style={{ color: '#1677ff', fontSize: 16 }} />}
+                      <Text strong={isActive} style={{ fontSize: 15 }}>{item.name}</Text>
+                      <Tag color="blue">{getProviderLabel(item.provider)}</Tag>
+                    </Space>
+                    <Space>
                       {isActive ? (
-                        <Button type="default" icon={<CheckCircleOutlined />} disabled>
-                          已启用
-                        </Button>
+                        <Button size="small" icon={<CheckCircleOutlined />} disabled>已启用</Button>
                       ) : (
-                        <Button
-                          type="link"
-                          icon={<CheckCircleOutlined />}
-                          onClick={() => handleApplyPreset(item)}
-                        >
+                        <Button size="small" icon={<CheckCircleOutlined />} onClick={() => handleApplyPreset(item)}>
                           启用
                         </Button>
                       )}
-                      <Popconfirm
-                        title="确定删除此预设？"
-                        onConfirm={() => handleDeletePreset(item.name)}
-                      >
-                        <Button type="link" danger icon={<DeleteOutlined />}>
-                          删除
-                        </Button>
+                      <Popconfirm title="确定删除此预设？" onConfirm={() => handleDeletePreset(item.name)}>
+                        <Button size="small" danger icon={<DeleteOutlined />}>删除</Button>
                       </Popconfirm>
                     </Space>
                   </div>
+
+                  {/* 配置详情 */}
+                  <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', marginBottom: 12, fontSize: 13 }}>
+                    <div><Text type="secondary">Endpoint: </Text><Text>{item.endpoint}</Text></div>
+                    <div><Text type="secondary">Model: </Text><Text>{item.model}</Text></div>
+                    <div><Text type="secondary">API Key: </Text><Text>{maskApiKey(item.apiKey)}</Text></div>
+                  </div>
+
+                  {/* 供应商官网链接卡片 */}
+                  {providerInfo && (
+                    <Card
+                      size="small"
+                      hoverable
+                      style={{ background: '#fafafa', borderRadius: 6, cursor: 'pointer' }}
+                      styles={{ body: { padding: '8px 12px' } }}
+                      onClick={() => window.electronAPI?.openExternal(providerInfo.site)}
+                    >
+                      <Space>
+                        <LinkOutlined />
+                        <Text type="secondary">访问 {providerInfo.label} 官网</Text>
+                      </Space>
+                    </Card>
+                  )}
                 </Card>
               );
             })}
@@ -453,31 +325,100 @@ export default function AIAssistant() {
         </>
       )}
 
-      {/* 保存预设对话框 */}
+      {/* 添加/编辑 API 配置弹窗 */}
       <Modal
-        title="保存为配置预设"
-        open={presetModalOpen}
-        onOk={handleSavePreset}
-        onCancel={() => {
-          setPresetModalOpen(false);
-          setPresetName('');
-        }}
-        okText="保存"
-        cancelText="取消"
+        title="配置 API"
+        open={modalOpen}
+        onCancel={() => setModalOpen(false)}
+        footer={null}
+        width={560}
+        destroyOnClose
       >
-        <Form layout="vertical">
-          <Form.Item label="预设名称" required>
+        <Form layout="vertical" style={{ marginTop: 16 }}>
+          <Form.Item label={<Text strong>AI 模式</Text>}>
+            <Radio.Group value={mode} onChange={(e) => handleModeChange(e.target.value)}>
+              <Radio.Button value="preset">预置提供商</Radio.Button>
+              <Radio.Button value="custom">自定义 OpenAI 兼容</Radio.Button>
+            </Radio.Group>
+          </Form.Item>
+
+          {mode === 'preset' && (
+            <>
+              <Form.Item label={<Text strong>选择提供商</Text>}>
+                <Radio.Group value={provider} onChange={(e) => handleProviderChange(e.target.value)}>
+                  {Object.entries(PRESET_PROVIDERS).map(([key, cfg]) => (
+                    <Radio key={key} value={key}>{cfg.label}</Radio>
+                  ))}
+                </Radio.Group>
+              </Form.Item>
+              <Card
+                size="small"
+                hoverable
+                style={{ marginBottom: 16, background: '#fafafa', borderRadius: 6, cursor: 'pointer' }}
+                styles={{ body: { padding: '8px 12px' } }}
+                onClick={() => window.electronAPI?.openExternal(PRESET_PROVIDERS[provider].site)}
+              >
+                <Space>
+                  <LinkOutlined />
+                  <Text type="secondary">访问 {PRESET_PROVIDERS[provider].label} 官网</Text>
+                </Space>
+              </Card>
+            </>
+          )}
+
+          <Form.Item label={<Text strong>API Endpoint</Text>} required>
+            <Input
+              value={endpoint}
+              onChange={(e) => setEndpoint(e.target.value)}
+              placeholder="https://api.example.com/v1"
+            />
+          </Form.Item>
+
+          <Form.Item label={<Text strong>模型</Text>} required>
+            <Input
+              value={model}
+              onChange={(e) => setModel(e.target.value)}
+              placeholder="模型名称"
+            />
+          </Form.Item>
+
+          <Form.Item label={<Text strong>API Key</Text>} required>
+            <Input.Password
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              placeholder="sk-..."
+            />
+          </Form.Item>
+
+          <Form.Item label={<Text strong>预设名称</Text>}>
             <Input
               value={presetName}
               onChange={(e) => setPresetName(e.target.value)}
-              placeholder="例如：工作电脑、家用电脑"
-              onPressEnter={handleSavePreset}
+              placeholder="保存为预设，方便快速切换"
             />
           </Form.Item>
+
+          <Space>
+            <Button onClick={handleTest} loading={testing}>测试连接</Button>
+            {testResult && (
+              <Alert
+                type={testResult.success ? 'success' : 'error'}
+                message={testResult.message}
+                showIcon
+                style={{ padding: '4px 12px' }}
+              />
+            )}
+          </Space>
+
+          <Divider />
+
+          <Space>
+            <Button type="primary" icon={<CheckCircleOutlined />} onClick={handleSave} loading={saving}>
+              保存
+            </Button>
+            <Button onClick={() => setModalOpen(false)}>取消</Button>
+          </Space>
         </Form>
-        <Text type="secondary">
-          将保存当前配置（含 API Key、端点、模型等信息）到本地，方便快速切换。
-        </Text>
       </Modal>
     </div>
   );

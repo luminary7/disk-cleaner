@@ -11,13 +11,14 @@ export interface ProviderConfig {
   endpoint: string;
   model: string;
   label: string;
+  site: string;
 }
 
 export const PRESET_PROVIDERS: Record<PresetProvider, ProviderConfig> = {
-  deepseek: { endpoint: 'https://api.deepseek.com', model: 'deepseek-v4-flash', label: 'DeepSeek' },
-  minimax: { endpoint: 'https://api.minimax.chat/v1', model: 'Minimax-M3', label: 'MiniMax' },
-  siliconflow: { endpoint: 'https://api.siliconflow.cn/v1', model: 'Qwen/Qwen2.5-7B-Instruct', label: '硅基流动' },
-  agens: { endpoint: 'https://apihub.agnes-ai.com/v1/', model: 'agnes-2.0-flash', label: 'Agnes AI' },
+  deepseek: { endpoint: 'https://api.deepseek.com', model: 'deepseek-v4-flash', label: 'DeepSeek', site: 'https://platform.deepseek.com/' },
+  minimax: { endpoint: 'https://api.minimax.chat/v1', model: 'Minimax-M3', label: 'MiniMax', site: 'https://platform.minimaxi.com/' },
+  siliconflow: { endpoint: 'https://api.siliconflow.cn/v1', model: 'Qwen/Qwen2.5-7B-Instruct', label: '硅基流动', site: 'https://cloud.siliconflow.cn/' },
+  agens: { endpoint: 'https://apihub.agnes-ai.com/v1/', model: 'agnes-2.0-flash', label: 'Agnes AI', site: 'https://agnes-ai.com/' },
 };
 
 export const AGENS_LINKS = {

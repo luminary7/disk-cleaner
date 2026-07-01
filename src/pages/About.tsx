@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Card, Descriptions, Tag, Typography, Space, Divider, Spin } from 'antd';
+import { Card, Descriptions, Tag, Typography, Space, Divider, Spin, Modal } from 'antd';
 import { InfoCircleOutlined, UserOutlined } from '@ant-design/icons';
 import douyinIcon from '../assets/ui/douyin.png';
 import redNoteIcon from '../assets/ui/red-note.png';
+import thumbBqb from '../assets/bqb/thumb.png';
 
 const { Title, Paragraph, Link, Text } = Typography;
 
@@ -53,6 +54,7 @@ function SocialLink({
 export default function About() {
   const [appInfo, setAppInfo] = useState<AppInfo | null>(null);
   const [loading, setLoading] = useState(true);
+  const [eggVisible, setEggVisible] = useState(false);
 
   useEffect(() => {
     window.electronAPI.getAppInfo().then((info) => {
@@ -79,7 +81,16 @@ export default function About() {
         <Paragraph type="secondary" style={{ marginTop: 8, fontSize: 13 }}>
           {appInfo.description}
         </Paragraph>
-        <Tag color="blue" style={{ marginTop: 4 }}>{appInfo.license}</Tag>
+        <div style={{ marginTop: 4, display: 'flex', justifyContent: 'center', gap: 8 }}>
+          <Tag color="blue">{appInfo.license}</Tag>
+          <Tag
+            color="orange"
+            style={{ cursor: 'pointer' }}
+            onClick={() => setEggVisible(true)}
+          >
+            不可以点我哦
+          </Tag>
+        </div>
       </Card>
 
       {/* 关注我 */}
@@ -138,6 +149,30 @@ export default function About() {
       <Paragraph type="secondary" style={{ textAlign: 'center', fontSize: 12, marginBottom: 0 }}>
         Copyright &copy; {new Date().getFullYear()} {appInfo.author || '7号只会咕咕咕'}.
       </Paragraph>
+
+      {/* 彩蛋弹窗 */}
+      <Modal
+        title="🎉 没有用的彩蛋 +1"
+        open={eggVisible}
+        footer={null}
+        width={480}
+        centered
+        onCancel={() => setEggVisible(false)}
+      >
+        <div style={{ textAlign: 'center', padding: '16px 0' }}>
+          <img
+            src={thumbBqb}
+            alt="表情包"
+            style={{ width: 200, height: 'auto', borderRadius: 12, marginBottom: 20 }}
+          />
+          <Paragraph style={{ fontSize: 15, lineHeight: 1.8, margin: 0, whiteSpace: 'pre-line' }}>
+            各位老大好，这是我的第一款VibeCoding正式发布的作品，可能有很多不足之处，希望大家可以谅解，我都会慢慢完善。有软件上的问题反馈或者你对Vibe Coding有问题，都可以随时联系我，只要主包有空都会帮你们解答。非常感谢各位老大的支持🎉
+          </Paragraph>
+          <Paragraph style={{ fontSize: 15, lineHeight: 1.8, margin: '8px 0 0', fontWeight: 700 }}>
+            最后就是希望大家可以天天开心，万事如意~
+          </Paragraph>
+        </div>
+      </Modal>
     </div>
   );
 }
