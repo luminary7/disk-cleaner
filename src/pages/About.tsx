@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Card, Descriptions, Tag, Typography, Space, Divider, Spin, Modal } from 'antd';
 import { InfoCircleOutlined, UserOutlined } from '@ant-design/icons';
-import douyinIcon from '../assets/ui/douyin.png';
-import redNoteIcon from '../assets/ui/red-note.png';
-import thumbBqb from '../assets/bqb/thumb.png';
+import douyinIcon from '../assets/ui/douyin.webp';
+import redNoteIcon from '../assets/ui/red-note.webp';
+import thumbBqb from '../assets/bqb/thumb.webp';
 
 const { Title, Paragraph, Link, Text } = Typography;
 

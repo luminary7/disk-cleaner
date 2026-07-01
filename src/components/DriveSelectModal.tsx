@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Modal, Checkbox, Typography, Space, Spin, Empty } from 'antd';
-import driveImg from '../assets/ui-kit/disk-drive.png';
+import driveImg from '../assets/ui-kit/disk-drive.webp';
 
 const { Text } = Typography;
 

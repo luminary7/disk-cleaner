@@ -15,11 +15,11 @@ import {
 import gsap from 'gsap';
 import ParticleBackground from '../components/ParticleBackground';
 import DriveSelectModal from '../components/DriveSelectModal';
-import logoImg from '../assets/bqb/red-face.png';
-import scanStateImg from '../assets/ui-kit/scan-state.png';
-import safeCleanImg from '../assets/ui-kit/safe-clean.png';
-import cautionProtectImg from '../assets/ui-kit/caution-protect.png';
-import homepageBqb from '../assets/bqb/homepage.png';
+import logoImg from '../assets/bqb/red-face.webp';
+import scanStateImg from '../assets/ui-kit/scan-state.webp';
+import safeCleanImg from '../assets/ui-kit/safe-clean.webp';
+import cautionProtectImg from '../assets/ui-kit/caution-protect.webp';
+import homepageBqb from '../assets/bqb/homepage.webp';
 
 const { Title, Text } = Typography;
 

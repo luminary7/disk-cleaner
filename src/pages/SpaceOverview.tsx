@@ -11,13 +11,13 @@ import {
 import gsap from 'gsap';
 import FloatingLines from '../components/FloatingLines';
 import DriveSelectModal from '../components/DriveSelectModal';
-import tempCacheImg from '../assets/ui-kit/temp-cache.png';
-import browserCacheImg from '../assets/ui-kit/browser-cache.png';
-import appCacheImg from '../assets/ui-kit/app-cache.png';
-import systemCacheImg from '../assets/ui-kit/system-cache.png';
-import largeFileImg from '../assets/ui-kit/large-file.png';
-import safeCleanImg from '../assets/ui-kit/safe-clean.png';
-import driveImg from '../assets/ui-kit/disk-drive.png';
+import tempCacheImg from '../assets/ui-kit/temp-cache.webp';
+import browserCacheImg from '../assets/ui-kit/browser-cache.webp';
+import appCacheImg from '../assets/ui-kit/app-cache.webp';
+import systemCacheImg from '../assets/ui-kit/system-cache.webp';
+import largeFileImg from '../assets/ui-kit/large-file.webp';
+import safeCleanImg from '../assets/ui-kit/safe-clean.webp';
+import driveImg from '../assets/ui-kit/disk-drive.webp';
 
 const { Title, Text } = Typography;
 

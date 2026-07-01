@@ -27,7 +27,7 @@ import {
   PlaySquareOutlined,
   FileTextOutlined,
 } from '@ant-design/icons';
-import largeFileImg from '../assets/ui-kit/large-file.png';
+import largeFileImg from '../assets/ui-kit/large-file.webp';
 import type { ColumnsType } from 'antd/es/table';
 import DriveSelectModal from '../components/DriveSelectModal';
 

@@ -28,7 +28,7 @@ import {
 } from '@ant-design/icons';
 import { PRESET_PROVIDERS } from '../shared/provider-config';
 import type { PresetProvider } from '../shared/provider-config';
-import aiAnalysisImg from '../assets/ui-kit/ai-analysis.png';
+import aiAnalysisImg from '../assets/ui-kit/ai-analysis.webp';
 
 const { Title, Text } = Typography;
 
