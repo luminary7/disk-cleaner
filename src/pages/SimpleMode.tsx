@@ -19,6 +19,7 @@ import logoImg from '../assets/logo.png';
 import scanStateImg from '../assets/ui-kit/scan-state.png';
 import safeCleanImg from '../assets/ui-kit/safe-clean.png';
 import cautionProtectImg from '../assets/ui-kit/caution-protect.png';
+import homepageBqb from '../assets/bqb/homepage.png';
 
 const { Title, Text } = Typography;
 
@@ -602,8 +603,13 @@ export default function SimpleMode({ onSwitchToAdvanced }: Props) {
             </div>
             <Title level={2} style={{ margin: '8px 0 4px' }}>我的磁盘怎么红红的，是要谈恋爱了吗</Title>
             <Text type="secondary" style={{ fontSize: 15, display: 'block', marginBottom: 24 }}>
-              一键扫描并安全清理C盘垃圾文件
+              一键扫描并安全清理磁盘垃圾文件
             </Text>
+            <img
+              src={homepageBqb}
+              alt="表情包"
+              style={{ width: 160, height: 'auto', borderRadius: 12, marginBottom: 20, display: 'block', margin: '0 auto 20px' }}
+            />
             <Button
               type="primary"
               size="large"
