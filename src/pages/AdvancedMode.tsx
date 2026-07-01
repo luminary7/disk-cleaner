@@ -5,6 +5,7 @@ import {
   FormatPainterOutlined,
   FileSearchOutlined,
   RobotOutlined,
+  InfoCircleOutlined,
   ArrowLeftOutlined,
   AuditOutlined,
 } from '@ant-design/icons';
@@ -15,10 +16,11 @@ import AIAssistant from './AIAssistant';
 import AIConfigPage from './AIConfigPage';
 import SettingsPage from './SettingsPage';
 import ScanRules from './ScanRules';
+import About from './About';
 
 const { Sider, Content } = Layout;
 
-type TabKey = 'overview' | 'clean-items' | 'large-files' | 'ai-chat' | 'ai-config' | 'settings' | 'scan-rules';
+type TabKey = 'overview' | 'clean-items' | 'large-files' | 'ai-chat' | 'ai-config' | 'settings' | 'scan-rules' | 'about';
 
 interface Props {
   onSwitchToSimple: () => void;
@@ -30,6 +32,7 @@ const menuItems = [
   { key: 'large-files', icon: <FileSearchOutlined />, label: '大文件分析' },
   { key: 'scan-rules', icon: <AuditOutlined />, label: '扫描规则' },
   { key: 'ai-chat', icon: <RobotOutlined />, label: 'AI 助手' },
+  { key: 'about', icon: <InfoCircleOutlined />, label: '关于' },
 ];
 
 export default function AdvancedMode({ onSwitchToSimple }: Props) {
@@ -44,6 +47,7 @@ export default function AdvancedMode({ onSwitchToSimple }: Props) {
       'large-files': <LargeFiles />,
       'scan-rules': <ScanRules />,
       'ai-chat': <AIAssistant />,
+      'about': <About />,
     };
     return (
       <>

@@ -66,6 +66,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // 打开回收站
   openRecycleBin: () => ipcRenderer.invoke('system:open-recycle-bin'),
 
+  // 应用信息
+  getAppInfo: () => ipcRenderer.invoke('app:info'),
+
   // 打开文件位置
   openFileLocation: (filePath) => ipcRenderer.invoke('shell:open-file-location', filePath),
   openExternal: (url) => ipcRenderer.invoke('shell:open-external', url),

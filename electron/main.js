@@ -341,6 +341,21 @@ function registerIPC() {
     } catch { /* 静默失败 */ }
   });
 
+  // ========= 应用信息 =========
+  ipcMain.handle('app:info', async () => {
+    const pkg = require(path.join(__dirname, '..', 'package.json'));
+    return {
+      appName: pkg.build?.productName || 'C盘清理工具',
+      version: app.getVersion(),
+      description: pkg.description || '',
+      electron: process.versions.electron,
+      chrome: process.versions.chrome,
+      node: process.versions.node,
+      author: pkg.author || '',
+      license: pkg.license || 'MIT',
+    };
+  });
+
   // ========= Shell =========
   ipcMain.handle('shell:open-file-location', async (_event, filePath) => {
     shell.showItemInFolder(filePath);

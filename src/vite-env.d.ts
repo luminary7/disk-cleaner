@@ -72,6 +72,17 @@ declare global {
     path: string;
   }
 
+  interface AppInfo {
+    appName: string;
+    version: string;
+    description: string;
+    electron: string;
+    chrome: string;
+    node: string;
+    author: string;
+    license: string;
+  }
+
   interface ElectronAPI {
     detectDrives: () => Promise<DriveInfo[]>;
     startScan: (drives?: string[]) => Promise<ScanResult>;
@@ -121,6 +132,9 @@ declare global {
 
     openFileLocation: (filePath: string) => Promise<void>;
     openExternal: (url: string) => Promise<void>;
+
+    // 应用信息
+    getAppInfo: () => Promise<AppInfo>;
 
     // 单文件删除
     cleanSingle: (item: ScanItem, options?: CleanOptions) => Promise<ScanItem & { success: boolean; error?: string }>;
