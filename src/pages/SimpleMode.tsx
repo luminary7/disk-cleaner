@@ -10,6 +10,7 @@ import LockOutlined from '@ant-design/icons/LockOutlined';
 import FileTextOutlined from '@ant-design/icons/FileTextOutlined';
 import DownOutlined from '@ant-design/icons/DownOutlined';
 import FolderOpenOutlined from '@ant-design/icons/FolderOpenOutlined';
+import CloseCircleOutlined from '@ant-design/icons/CloseCircleOutlined';
 import gsap from 'gsap';
 import ParticleBackground from '../components/ParticleBackground';
 import DriveSelectModal from '../components/DriveSelectModal';
@@ -324,6 +325,10 @@ export default function SimpleMode({ onSwitchToAdvanced }: Props) {
 
   const handleLoadMore = useCallback(() => {
     setVisibleCount(prev => prev + PAGE_SIZE);
+  }, []);
+
+  const handleCancelScan = useCallback(() => {
+    window.electronAPI?.cancelScan();
   }, []);
 
   // 单文件删除：直接从列表中移除，不改变当前阶段
@@ -652,6 +657,14 @@ export default function SimpleMode({ onSwitchToAdvanced }: Props) {
             <Text style={{ marginTop: 8, fontSize: 12, color: '#8c8c8c' }}>
               已发现 {totalItemCount} 项
             </Text>
+            <Button
+              danger
+              icon={<CloseCircleOutlined />}
+              onClick={handleCancelScan}
+              style={{ marginTop: 16, width: '100%' }}
+            >
+              终止扫描
+            </Button>
           </div>
           {/* 右面板：文件列表 */}
           {renderFileListPanel(true)}

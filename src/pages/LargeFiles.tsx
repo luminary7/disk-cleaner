@@ -25,6 +25,7 @@ import DatabaseOutlined from '@ant-design/icons/DatabaseOutlined';
 import InboxOutlined from '@ant-design/icons/InboxOutlined';
 import PlaySquareOutlined from '@ant-design/icons/PlaySquareOutlined';
 import FileTextOutlined from '@ant-design/icons/FileTextOutlined';
+import CloseCircleOutlined from '@ant-design/icons/CloseCircleOutlined';
 import largeFileImg from '../assets/ui-kit/large-file.webp';
 import type { ColumnsType } from 'antd/es/table';
 import DriveSelectModal from '../components/DriveSelectModal';
@@ -178,6 +179,10 @@ export default function LargeFiles() {
 
   const handleScan = () => {
     setShowDriveSelect(true);
+  };
+
+  const handleCancelScan = () => {
+    window.electronAPI?.cancelLargeFileScan();
   };
 
   const loadAnalysisCache = async (scanFiles?: ScanItem[]) => {
@@ -621,14 +626,23 @@ export default function LargeFiles() {
               </Button>
             </>
           )}
-          <Button
-            type="primary"
-            icon={<FileSearchOutlined />}
-            onClick={handleScan}
-            loading={loading}
-          >
-            {files.length === 0 ? '开始扫描' : '重新扫描'}
-          </Button>
+          {loading ? (
+            <Button
+              danger
+              icon={<CloseCircleOutlined />}
+              onClick={handleCancelScan}
+            >
+              终止扫描
+            </Button>
+          ) : (
+            <Button
+              type="primary"
+              icon={<FileSearchOutlined />}
+              onClick={handleScan}
+            >
+              {files.length === 0 ? '开始扫描' : '重新扫描'}
+            </Button>
+          )}
         </Space>
       </Row>
 

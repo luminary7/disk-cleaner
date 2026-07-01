@@ -12,6 +12,7 @@ import LockOutlined from '@ant-design/icons/LockOutlined';
 import SafetyCertificateOutlined from '@ant-design/icons/SafetyCertificateOutlined';
 import ScanOutlined from '@ant-design/icons/ScanOutlined';
 import WarningOutlined from '@ant-design/icons/WarningOutlined';
+import CloseCircleOutlined from '@ant-design/icons/CloseCircleOutlined';
 import gsap from 'gsap';
 import FloatingLines from '../components/FloatingLines';
 import DriveSelectModal from '../components/DriveSelectModal';
@@ -167,6 +168,10 @@ export default function SpaceOverview() {
   const handleReselectDrive = () => {
     setCategories([]);
     setTopItems([]);
+  };
+
+  const handleCancelScan = () => {
+    window.electronAPI?.cancelScan();
   };
 
   const handleScanWithDrive = async (letter: string) => {
@@ -578,6 +583,14 @@ export default function SpaceOverview() {
           <div style={{ textAlign: 'center', padding: '60px 0' }}>
             <Spin size="large" />
             <div style={{ marginTop: 16 }}>正在扫描，请稍候...</div>
+            <Button
+              danger
+              icon={<CloseCircleOutlined />}
+              onClick={handleCancelScan}
+              style={{ marginTop: 20 }}
+            >
+              终止扫描
+            </Button>
           </div>
         </Card>
       )}

@@ -102,6 +102,10 @@ export default function CleanItems() {
     }
   };
 
+  const handleCancelScan = () => {
+    window.electronAPI?.cancelScan();
+  };
+
   const handleScan = () => {
     setShowDriveSelect(true);
   };
@@ -375,14 +379,23 @@ export default function CleanItems() {
           >
             打开回收站
           </Button>
-          <Button
-            type={items.length === 0 ? 'primary' : 'default'}
-            icon={<ScanOutlined />}
-            onClick={handleScan}
-            loading={loading}
-          >
-            {items.length === 0 ? '开始扫描' : '重新扫描'}
-          </Button>
+          {loading ? (
+            <Button
+              danger
+              icon={<CloseCircleOutlined />}
+              onClick={handleCancelScan}
+            >
+              终止扫描
+            </Button>
+          ) : (
+            <Button
+              type={items.length === 0 ? 'primary' : 'default'}
+              icon={<ScanOutlined />}
+              onClick={handleScan}
+            >
+              {items.length === 0 ? '开始扫描' : '重新扫描'}
+            </Button>
+          )}
         </Space>
       </Row>
 
