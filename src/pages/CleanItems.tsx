@@ -19,6 +19,7 @@ import browserCacheImg from '../assets/ui-kit/browser-cache.webp';
 import appCacheImg from '../assets/ui-kit/app-cache.webp';
 import systemCacheImg from '../assets/ui-kit/system-cache.webp';
 import largeFileImg from '../assets/ui-kit/large-file.webp';
+import DriveSelectModal from '../components/DriveSelectModal';
 
 const { Title, Text } = Typography;
 
@@ -51,6 +52,7 @@ export default function CleanItems() {
   const [loading, setLoading] = useState(false);
   const [cleaning, setCleaning] = useState(false);
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
+  const [showDriveSelect, setShowDriveSelect] = useState(false);
   const pendingRestoreRef = useRef<ScanItem[]>([]);
 
   // 监听增量批次，用于实时滚动展示
@@ -79,13 +81,14 @@ export default function CleanItems() {
     };
   }, []);
 
-  const handleScan = async () => {
+  const handleStartScanWithDrives = async (drives: string[]) => {
+    setShowDriveSelect(false);
     if (!window.electronAPI) return;
     setLoading(true);
     setItems([]);
     setSelectedIds(new Set());
     try {
-      const result = await window.electronAPI.startScan();
+      const result = await window.electronAPI.startScan(drives);
       // 以返回值为准，覆盖增量积累
       setItems(result.items);
       setSelectedIds(new Set(result.items.filter(i => i.safety === 'safe').map(i => i.id)));
@@ -94,6 +97,10 @@ export default function CleanItems() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleScan = () => {
+    setShowDriveSelect(true);
   };
 
   const handleClean = () => {
@@ -434,6 +441,12 @@ export default function CleanItems() {
         />
       </Card>
       )}
+      {/* 盘符选择弹窗 */}
+      <DriveSelectModal
+        open={showDriveSelect}
+        onConfirm={handleStartScanWithDrives}
+        onCancel={() => setShowDriveSelect(false)}
+      />
     </div>
   );
 }

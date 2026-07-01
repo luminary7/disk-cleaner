@@ -1,7 +1,7 @@
 const { app, BrowserWindow, ipcMain, shell, Menu } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const { execSync } = require('child_process');
+const { execSync, execFileSync } = require('child_process');
 const scanner = require('./scanner');
 const fileOperator = require('./file-operator');
 const { AIProvider } = require('./ai-provider');
@@ -115,13 +115,12 @@ function registerIPC() {
         await fs.promises.access(root);
         let label = '';
         try {
-          // chcp 65001 切换到 UTF-8 代码页，解决中文盘符名乱码
-          const output = execSync(
-            `chcp 65001 > nul & wmic logicaldisk where name="${letter}:" get volumename /format:value`,
-            { encoding: 'utf8', timeout: 2000 }
-          );
-          const match = output.match(/VolumeName=(.+)/);
-          label = match ? match[1].replace(/\r/g, '').trim() : '';
+          // 直接用 PowerShell 获取卷标，绕过 cmd.exe 编码问题
+          const output = execFileSync('powershell.exe', [
+            '-NoProfile', '-Command',
+            `[Console]::OutputEncoding = [Text.Encoding]::UTF8; (Get-WmiObject Win32_LogicalDisk -Filter 'DeviceID="${letter}:"').VolumeName`,
+          ], { encoding: 'utf8', timeout: 5000 });
+          label = output.trim();
         } catch { /* volume label not available */ }
         drives.push({ letter, label, path: root });
       } catch { /* drive not accessible */ }
