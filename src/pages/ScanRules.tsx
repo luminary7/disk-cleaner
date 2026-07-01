@@ -57,14 +57,14 @@ const SAFETY_LEVELS: SafetyRule[] = [
     label: '需要确认',
     color: 'gold',
     icon: <WarningOutlined />,
-    desc: '可能可清理，但涉及系统缓存、近期缓存或用户目录。必须由用户显式确认。',
+    desc: '不确定但不应锁死的项目，例如近期缓存、模型文件、普通大文件、未知类型。必须由用户显式确认。',
   },
   {
     level: 'keep',
     label: '建议保留',
     color: 'red',
     icon: <LockOutlined />,
-    desc: '系统关键文件、高风险资源、未知类型等。普通清理入口会阻止删除。',
+    desc: '系统关键文件、程序目录、结构性配置/数据库、密钥证书、虚拟磁盘和游戏资源。普通清理入口会阻止删除。',
   },
 ];
 
@@ -141,7 +141,7 @@ const LARGE_FILE_RULES: ScopeRule[] = [
     name: '大文件发现',
     paths: ['所选盘符根目录下的一级目录，排除系统核心目录后递归扫描'],
     rule: '最大深度 6；仅收集 50MB 及以上文件，用于发现空间占用，不做默认一键清理。',
-    safety: '大多数 caution；虚拟磁盘、游戏资源、高风险目录或未知类型 keep',
+    safety: '大多数 caution；高风险目录、结构性数据、虚拟磁盘和游戏资源 keep',
     color: 'volcano',
   },
 ];
@@ -182,6 +182,14 @@ const EXTENSION_DATA: ExtensionRule[] = [
     note: '常见于虚拟机、磁盘镜像、游戏资源，默认不清理。',
   },
   {
+    key: 'structural',
+    name: '结构性数据/配置',
+    exts: '.db .sqlite .env .key .pem .pfx .crt .conf .config .toml .yaml .ini .cfg 等',
+    safety: 'keep',
+    color: 'red',
+    note: '非缓存目录中通常是应用数据、配置或凭据，不进入普通清理。',
+  },
+  {
     key: 'exec',
     name: '可执行模块',
     exts: '.dll .exe .msi .bat .cmd .ps1 .vbs',
@@ -196,6 +204,14 @@ const EXTENSION_DATA: ExtensionRule[] = [
     safety: 'caution',
     color: 'gold',
     note: '大文件扫描中只提示，不自动清理。',
+  },
+  {
+    key: 'model',
+    name: 'AI 模型/权重',
+    exts: '.safetensors .ckpt .pt .pth .onnx .gguf .bin .model .weights 等',
+    safety: 'caution',
+    color: 'gold',
+    note: '通常是用户主动下载的资产，可手动确认，不再直接锁死。',
   },
   {
     key: 'known-cache',
@@ -217,9 +233,9 @@ const EXTENSION_DATA: ExtensionRule[] = [
     key: 'unknown',
     name: '未知类型',
     exts: '无后缀，或不在已知列表中的扩展名',
-    safety: 'keep',
-    color: 'red',
-    note: '未知意味着风险不可判断，规则默认保留。',
+    safety: 'caution',
+    color: 'gold',
+    note: '默认交给用户确认；如果位于高风险目录，仍会提升为 keep。',
   },
 ];
 
@@ -317,7 +333,7 @@ const DECISION_STEPS = [
   },
   {
     title: '再看文件类型',
-    desc: '系统关键扩展名和高风险资源直接 keep；可执行模块 caution；未知扩展名或无后缀文件 keep。',
+    desc: '系统关键、高风险资源、结构性配置/数据库直接 keep；可执行模块、模型文件、未知扩展名或无后缀文件 caution。',
     icon: <FileProtectOutlined />,
     color: '#fa8c16',
   },
@@ -495,7 +511,7 @@ export default function ScanRules() {
 
       <Card title="文件扩展名规则" style={{ marginBottom: 16 }}>
         <Paragraph type="secondary" style={{ fontSize: 13, marginBottom: 12 }}>
-          后缀名只决定基础风险，最终等级还会结合扫描类别、所在目录和文件修改时间。未知类型默认保留。
+          后缀名只决定基础风险，最终等级还会结合扫描类别、所在目录和文件修改时间。未知类型默认需要确认，高风险目录中仍会保留。
         </Paragraph>
         <Table
           dataSource={EXTENSION_DATA}

@@ -122,7 +122,7 @@ const CAUTION_FILE_EXTS = [
   '.dll', '.exe', '.msi', '.bat', '.cmd', '.ps1', '.vbs',
 ];
 
-// 安装包/压缩包 — 在缓存目录 safe
+// 安装包/压缩包 — 在缓存目录可按年龄降级，其他位置需确认
 const PACKAGE_EXTS = [
   '.zip', '.rar', '.7z', '.tar', '.gz', '.bz2', '.xz', '.iso', '.img',
 ];
@@ -130,6 +130,20 @@ const PACKAGE_EXTS = [
 // 虚拟磁盘/镜像与常见游戏资源 — keep
 const HIGH_RISK_FILE_EXTS = [
   '.vhd', '.vhdx', '.vmdk', '.qcow2', '.pak', '.obb',
+];
+
+// 数据库、密钥、证书、配置等结构性高价值文件 — 非缓存目录 keep
+const STRUCTURAL_FILE_EXTS = [
+  '.db', '.sqlite', '.sqlite3',
+  '.env', '.key', '.pem', '.pfx', '.p12', '.crt', '.cer',
+  '.kdbx', '.wallet',
+  '.conf', '.config', '.toml', '.yaml', '.yml', '.ini', '.cfg',
+];
+
+// AI 模型/权重资产 — 大文件扫描中默认 caution，由用户确认
+const MODEL_FILE_EXTS = [
+  '.safetensors', '.ckpt', '.pt', '.pth', '.onnx', '.gguf',
+  '.bin', '.model', '.weights', '.h5', '.pb', '.tflite',
 ];
 
 // 已知可清理的缓存/临时文件扩展名
@@ -145,7 +159,14 @@ const CACHE_SAFE_EXTS = [
 ];
 
 // 所有已知扩展名合并（用于未知扩展名校验）
-var KNOWN_EXTS = SYSTEM_FILE_EXTS.concat(CAUTION_FILE_EXTS, PACKAGE_EXTS, HIGH_RISK_FILE_EXTS, CACHE_SAFE_EXTS);
+var KNOWN_EXTS = SYSTEM_FILE_EXTS.concat(
+  CAUTION_FILE_EXTS,
+  PACKAGE_EXTS,
+  HIGH_RISK_FILE_EXTS,
+  STRUCTURAL_FILE_EXTS,
+  MODEL_FILE_EXTS,
+  CACHE_SAFE_EXTS
+);
 
 function isExcludedPath(filePath) {
   return SYSTEM_EXCLUSIONS.some(function (pattern) { return pattern.test(filePath); });
@@ -174,18 +195,21 @@ function getExt(filePath) {
 function evaluate(filePath, size, category, extra) {
   extra = extra || {};
   var ext = getExt(filePath);
+  var dotExt = ext ? '.' + ext : '';
 
   // keep 判定
-  if (SYSTEM_FILE_EXTS.indexOf('.' + ext) !== -1) return 'keep';
-  if (HIGH_RISK_FILE_EXTS.indexOf('.' + ext) !== -1) return 'keep';
+  if (SYSTEM_FILE_EXTS.indexOf(dotExt) !== -1) return 'keep';
+  if (HIGH_RISK_FILE_EXTS.indexOf(dotExt) !== -1) return 'keep';
   if (isExcludedPath(filePath)) return 'keep';
+  if (category === 'large-file' && isHighRiskPath(filePath)) return 'keep';
+  if (isStructuralFile(dotExt) && !isCleanupPath(filePath)) return 'keep';
 
   // caution 判定（通用）
-  if (CAUTION_FILE_EXTS.indexOf('.' + ext) !== -1) return 'caution';
+  if (CAUTION_FILE_EXTS.indexOf(dotExt) !== -1) return 'caution';
 
-  // 无后缀或不在已知列表 → 不删除（未知文件类型，可能是游戏资源/数据等）
-  if (!ext) return 'keep';
-  if (KNOWN_EXTS.indexOf('.' + ext) === -1) return 'keep';
+  // 无后缀或不在已知列表 → 不确定但不直接锁死，交给用户确认
+  if (!ext) return 'caution';
+  if (KNOWN_EXTS.indexOf(dotExt) === -1) return 'caution';
 
   // 按类别细分
   switch (category) {
@@ -199,7 +223,6 @@ function evaluate(filePath, size, category, extra) {
     case 'system':
       return 'caution';
     case 'large-file':
-      if (isHighRiskPath(filePath)) return 'keep';
       if (isCautionPath(filePath)) return 'caution';
       return evaluateLargeFile(size, filePath);
     default:
@@ -229,8 +252,12 @@ function evaluateLargeFile(size, filePath) {
   var ext = getExt(filePath);
   // 安装包/压缩包/镜像在全盘大文件扫描中也需要人工确认
   if (PACKAGE_EXTS.indexOf('.' + ext) !== -1) return 'caution';
-  // 其余大文件一律 caution（可能是素材、备份、视频等用户数据）
+  // 模型、素材、备份、未知类型等普通大文件默认交给用户确认
   return 'caution';
+}
+
+function isStructuralFile(dotExt) {
+  return STRUCTURAL_FILE_EXTS.indexOf(dotExt) !== -1;
 }
 
 function getAgeHours(mtimeMs) {
