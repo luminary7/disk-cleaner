@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, Menu } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { execSync } = require('child_process');
@@ -27,7 +27,7 @@ function createWindow() {
     height: 750,
     minWidth: 800,
     minHeight: 600,
-    title: 'C盘清理工具',
+    title: '不许红',
     icon: path.join(__dirname, isDev ? '../public/icon.png' : '../dist/icon.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -35,6 +35,9 @@ function createWindow() {
       nodeIntegration: false,
     },
   });
+
+  // 移除默认菜单（File / Edit / View 等）
+  Menu.setApplicationMenu(null);
 
   if (isDev) {
     mainWindow.loadURL('http://localhost:5173');
@@ -368,7 +371,7 @@ function registerIPC() {
   ipcMain.handle('app:info', async () => {
     const pkg = require(path.join(__dirname, '..', 'package.json'));
     return {
-      appName: pkg.build?.productName || 'C盘清理工具',
+      appName: pkg.build?.productName || '不许红',
       version: app.getVersion(),
       description: pkg.description || '',
       electron: process.versions.electron,

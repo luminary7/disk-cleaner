@@ -96,7 +96,7 @@ async function moveBatchToTrash(items, options = {}) {
  */
 function createSystemRestorePoint() {
   try {
-    const desc = 'C盘清理工具 - 清理前备份';
+    const desc = '不许红 - 清理前备份';
     // 使用 PowerShell 创建还原点
     const cmd = `
       powershell -Command "

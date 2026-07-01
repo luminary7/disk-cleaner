@@ -598,9 +598,9 @@ export default function SimpleMode({ onSwitchToAdvanced }: Props) {
         >
           <div ref={idleContentRef} style={{ textAlign: 'center' }}>
             <div style={{ marginBottom: 12 }}>
-              <img src={logoImg} alt="C盘清理工具" style={{ width: 80, height: 80 }} />
+              <img src={logoImg} alt="不许红" style={{ width: 80, height: 80 }} />
             </div>
-            <Title level={2} style={{ margin: '8px 0 4px' }}>C盘智能清理</Title>
+            <Title level={2} style={{ margin: '8px 0 4px' }}>不许红</Title>
             <Text type="secondary" style={{ fontSize: 15, display: 'block', marginBottom: 24 }}>
               一键扫描并安全清理C盘垃圾文件
             </Text>
