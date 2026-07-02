@@ -78,12 +78,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // IPC 监听器清理（组件卸载时移除指定通道的所有监听器 — 保留向后兼容）
   removeAllListeners: (channel) => ipcRenderer.removeAllListeners(channel),
 
-  // 自动更新
+  // 自动更新（自动检测 GitHub Releases）
   checkForUpdates: () => ipcRenderer.invoke('update:check'),
   downloadUpdate: () => ipcRenderer.invoke('update:download'),
   installUpdate: () => ipcRenderer.invoke('update:install'),
-  getUpdateUrl: () => ipcRenderer.invoke('update:get-url'),
-  setUpdateUrl: (url) => ipcRenderer.invoke('update:set-url', url),
   onUpdateStatus: (callback) => onIpc('update:status', callback),
   onUpdateProgress: (callback) => onIpc('update:download-progress', callback),
 

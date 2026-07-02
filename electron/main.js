@@ -61,12 +61,8 @@ app.whenReady().then(() => {
   createWindow();
   registerIPC();
 
-  // 初始化自动更新模块
+  // 初始化自动更新模块（自动读取 package.json GitHub 发布配置）
   updater.init(mainWindow);
-  const updateUrl = store.get('updateUrl', '');
-  if (updateUrl) {
-    updater.setFeedURL(updateUrl);
-  }
 });
 
 app.on('window-all-closed', () => {
@@ -393,13 +389,8 @@ function registerIPC() {
     };
   });
 
-  // ========= 自动更新 =========
+  // ========= 自动更新（自动检测 GitHub Releases）=========
   ipcMain.handle('update:check', async () => {
-    const url = store.get('updateUrl', '');
-    if (!url) {
-      return { status: 'no-url' };
-    }
-    updater.setFeedURL(url);
     updater.checkForUpdates();
     return { status: 'checking' };
   });
@@ -410,17 +401,6 @@ function registerIPC() {
 
   ipcMain.handle('update:install', async () => {
     updater.quitAndInstall();
-  });
-
-  ipcMain.handle('update:get-url', async () => {
-    return store.get('updateUrl', '');
-  });
-
-  ipcMain.handle('update:set-url', async (_event, url) => {
-    store.set('updateUrl', url);
-    if (url) {
-      updater.setFeedURL(url);
-    }
   });
 
   // ========= Shell =========

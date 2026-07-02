@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { Card, Descriptions, Tag, Typography, Space, Divider, Spin, Button, Progress, Modal, Input, message } from 'antd';
+import { Card, Descriptions, Tag, Typography, Space, Divider, Spin, Button, Progress, Modal } from 'antd';
 import InfoCircleOutlined from '@ant-design/icons/InfoCircleOutlined';
 import UserOutlined from '@ant-design/icons/UserOutlined';
 import CloudDownloadOutlined from '@ant-design/icons/CloudDownloadOutlined';
@@ -60,12 +60,10 @@ export default function About() {
   const [eggVisible, setEggVisible] = useState(false);
 
   // 自动更新状态
-  const [updateStatus, setUpdateStatus] = useState<'idle' | 'checking' | 'update-available' | 'downloading' | 'update-downloaded' | 'up-to-date' | 'error' | 'no-url'>('idle');
+  const [updateStatus, setUpdateStatus] = useState<'idle' | 'checking' | 'update-available' | 'downloading' | 'update-downloaded' | 'up-to-date' | 'error'>('idle');
   const [updateVersion, setUpdateVersion] = useState('');
   const [updateMessage, setUpdateMessage] = useState('');
   const [downloadPercent, setDownloadPercent] = useState(0);
-  const [configUrlVisible, setConfigUrlVisible] = useState(false);
-  const [updateUrlInput, setUpdateUrlInput] = useState('');
   const upToDateTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => {
@@ -118,10 +116,7 @@ export default function About() {
     setDownloadPercent(0);
     setUpdateVersion('');
     setUpdateMessage('');
-    const result = await window.electronAPI.checkForUpdates();
-    if (result.status === 'no-url') {
-      setUpdateStatus('no-url');
-    }
+    window.electronAPI.checkForUpdates();
   }, []);
 
   const handleDownload = useCallback(() => {
@@ -134,20 +129,6 @@ export default function About() {
     window.electronAPI.installUpdate();
   }, []);
 
-  const handleOpenConfigUrl = useCallback(() => {
-    window.electronAPI.getUpdateUrl().then((url) => {
-      setUpdateUrlInput(url);
-      setConfigUrlVisible(true);
-    });
-  }, []);
-
-  const handleSaveUrl = useCallback(async () => {
-    await window.electronAPI.setUpdateUrl(updateUrlInput.trim());
-    setConfigUrlVisible(false);
-    message.success('更新地址已保存');
-    setUpdateStatus('idle');
-  }, [updateUrlInput]);
-
   function renderUpdateContent() {
     switch (updateStatus) {
       case 'idle':
@@ -156,12 +137,6 @@ export default function About() {
             <Button type="primary" ghost size="small" onClick={handleCheckUpdate}>
               <CloudDownloadOutlined /> 检查更新
             </Button>
-            <div style={{ marginTop: 6 }}>
-              <Button type="link" size="small" onClick={handleOpenConfigUrl}
-                style={{ fontSize: 12, color: '#999' }}>
-                配置更新地址
-              </Button>
-            </div>
           </div>
         );
 
@@ -224,24 +199,9 @@ export default function About() {
         return (
           <div style={{ textAlign: 'center' }}>
             <Text type="danger" style={{ fontSize: 13 }}>✗ {updateMessage}</Text>
-            <div style={{ marginTop: 8, display: 'flex', justifyContent: 'center', gap: 8 }}>
+            <div style={{ marginTop: 8 }}>
               <Button size="small" onClick={handleCheckUpdate}>
                 <ReloadOutlined /> 重试
-              </Button>
-              <Button size="small" onClick={handleOpenConfigUrl}>
-                配置地址
-              </Button>
-            </div>
-          </div>
-        );
-
-      case 'no-url':
-        return (
-          <div style={{ textAlign: 'center' }}>
-            <Text type="warning" style={{ fontSize: 13 }}>未配置更新服务器地址</Text>
-            <div style={{ marginTop: 8 }}>
-              <Button size="small" type="primary" ghost onClick={handleOpenConfigUrl}>
-                去配置
               </Button>
             </div>
           </div>
@@ -364,27 +324,6 @@ export default function About() {
           <Paragraph style={{ fontSize: 15, lineHeight: 1.8, margin: '8px 0 0', fontWeight: 700 }}>
             最后就是希望大家可以天天开心，万事如意~
           </Paragraph>
-        </div>
-      </Modal>
-
-      {/* 配置更新地址弹窗 */}
-      <Modal
-        title="配置更新服务器地址"
-        open={configUrlVisible}
-        onOk={handleSaveUrl}
-        onCancel={() => setConfigUrlVisible(false)}
-        okText="保存"
-        cancelText="取消"
-      >
-        <div style={{ padding: '8px 0' }}>
-          <Paragraph type="secondary" style={{ fontSize: 13, marginBottom: 12 }}>
-            请输入存放更新包的 HTTP 服务器地址（需包含最新版 latest.yml 和安装包）。
-          </Paragraph>
-          <Input
-            placeholder="https://example.com/releases"
-            value={updateUrlInput}
-            onChange={(e) => setUpdateUrlInput(e.target.value)}
-          />
         </div>
       </Modal>
     </div>

@@ -153,8 +153,6 @@ declare global {
     checkForUpdates: () => Promise<UpdateStatus>;
     downloadUpdate: () => Promise<void>;
     installUpdate: () => Promise<void>;
-    getUpdateUrl: () => Promise<string>;
-    setUpdateUrl: (url: string) => Promise<void>;
     onUpdateStatus: (callback: (status: UpdateStatus) => void) => () => void;
     onUpdateProgress: (callback: (progress: UpdateProgress) => void) => () => void;
 
