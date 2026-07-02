@@ -66,6 +66,22 @@ declare global {
     alternativeAction?: string;
   }
 
+  type UpdateStatusType = 'checking' | 'update-available' | 'update-not-available' | 'update-downloaded' | 'error' | 'no-url';
+
+  interface UpdateStatus {
+    status: UpdateStatusType;
+    version?: string;
+    releaseDate?: string;
+    message?: string;
+  }
+
+  interface UpdateProgress {
+    percent: number;
+    bytesPerSecond: number;
+    transferred: number;
+    total: number;
+  }
+
   interface DriveInfo {
     letter: string;
     label: string;
@@ -132,6 +148,15 @@ declare global {
 
     openFileLocation: (filePath: string) => Promise<void>;
     openExternal: (url: string) => Promise<void>;
+
+    // 自动更新
+    checkForUpdates: () => Promise<UpdateStatus>;
+    downloadUpdate: () => Promise<void>;
+    installUpdate: () => Promise<void>;
+    getUpdateUrl: () => Promise<string>;
+    setUpdateUrl: (url: string) => Promise<void>;
+    onUpdateStatus: (callback: (status: UpdateStatus) => void) => () => void;
+    onUpdateProgress: (callback: (progress: UpdateProgress) => void) => () => void;
 
     // 应用信息
     getAppInfo: () => Promise<AppInfo>;

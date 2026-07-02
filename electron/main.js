@@ -8,6 +8,7 @@ const { AIProvider } = require('./ai-provider');
 const { getFileDetail } = require('./file-detail');
 const Store = require('./store');
 const logger = require('./logger');
+const updater = require('./updater');
 
 const isDev = process.env.NODE_ENV === 'development';
 
@@ -59,6 +60,13 @@ app.whenReady().then(() => {
 
   createWindow();
   registerIPC();
+
+  // 初始化自动更新模块
+  updater.init(mainWindow);
+  const updateUrl = store.get('updateUrl', '');
+  if (updateUrl) {
+    updater.setFeedURL(updateUrl);
+  }
 });
 
 app.on('window-all-closed', () => {
@@ -383,6 +391,36 @@ function registerIPC() {
       author: pkg.author || '',
       license: pkg.license || 'MIT',
     };
+  });
+
+  // ========= 自动更新 =========
+  ipcMain.handle('update:check', async () => {
+    const url = store.get('updateUrl', '');
+    if (!url) {
+      return { status: 'no-url' };
+    }
+    updater.setFeedURL(url);
+    updater.checkForUpdates();
+    return { status: 'checking' };
+  });
+
+  ipcMain.handle('update:download', async () => {
+    updater.downloadUpdate();
+  });
+
+  ipcMain.handle('update:install', async () => {
+    updater.quitAndInstall();
+  });
+
+  ipcMain.handle('update:get-url', async () => {
+    return store.get('updateUrl', '');
+  });
+
+  ipcMain.handle('update:set-url', async (_event, url) => {
+    store.set('updateUrl', url);
+    if (url) {
+      updater.setFeedURL(url);
+    }
   });
 
   // ========= Shell =========

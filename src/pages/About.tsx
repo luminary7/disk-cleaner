@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react';
-import { Card, Descriptions, Tag, Typography, Space, Divider, Spin, Modal } from 'antd';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { Card, Descriptions, Tag, Typography, Space, Divider, Spin, Button, Progress, Modal, Input, message } from 'antd';
 import InfoCircleOutlined from '@ant-design/icons/InfoCircleOutlined';
 import UserOutlined from '@ant-design/icons/UserOutlined';
+import CloudDownloadOutlined from '@ant-design/icons/CloudDownloadOutlined';
+import ReloadOutlined from '@ant-design/icons/ReloadOutlined';
 import douyinIcon from '../assets/ui/douyin.webp';
 import redNoteIcon from '../assets/ui/red-note.webp';
 import thumbBqb from '../assets/bqb/thumb.webp';
@@ -57,12 +59,198 @@ export default function About() {
   const [loading, setLoading] = useState(true);
   const [eggVisible, setEggVisible] = useState(false);
 
+  // 自动更新状态
+  const [updateStatus, setUpdateStatus] = useState<'idle' | 'checking' | 'update-available' | 'downloading' | 'update-downloaded' | 'up-to-date' | 'error' | 'no-url'>('idle');
+  const [updateVersion, setUpdateVersion] = useState('');
+  const [updateMessage, setUpdateMessage] = useState('');
+  const [downloadPercent, setDownloadPercent] = useState(0);
+  const [configUrlVisible, setConfigUrlVisible] = useState(false);
+  const [updateUrlInput, setUpdateUrlInput] = useState('');
+  const upToDateTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
   useEffect(() => {
     window.electronAPI.getAppInfo().then((info) => {
       setAppInfo(info);
       setLoading(false);
     });
+
+    // 更新事件监听
+    const removeStatusListener = window.electronAPI.onUpdateStatus((status) => {
+      switch (status.status) {
+        case 'checking':
+          setUpdateStatus('checking');
+          setUpdateMessage('');
+          break;
+        case 'update-available':
+          setUpdateStatus('update-available');
+          setUpdateVersion(status.version || '');
+          break;
+        case 'update-not-available':
+          setUpdateStatus('up-to-date');
+          clearTimeout(upToDateTimer.current);
+          upToDateTimer.current = setTimeout(() => setUpdateStatus('idle'), 3000);
+          break;
+        case 'update-downloaded':
+          setUpdateStatus('update-downloaded');
+          setUpdateVersion(status.version || '');
+          break;
+        case 'error':
+          setUpdateStatus('error');
+          setUpdateMessage(status.message || '检查更新失败');
+          break;
+      }
+    });
+
+    const removeProgressListener = window.electronAPI.onUpdateProgress((progress) => {
+      setUpdateStatus('downloading');
+      setDownloadPercent(progress.percent);
+    });
+
+    return () => {
+      removeStatusListener();
+      removeProgressListener();
+      clearTimeout(upToDateTimer.current);
+    };
   }, []);
+
+  const handleCheckUpdate = useCallback(async () => {
+    setUpdateStatus('idle');
+    setDownloadPercent(0);
+    setUpdateVersion('');
+    setUpdateMessage('');
+    const result = await window.electronAPI.checkForUpdates();
+    if (result.status === 'no-url') {
+      setUpdateStatus('no-url');
+    }
+  }, []);
+
+  const handleDownload = useCallback(() => {
+    setUpdateStatus('downloading');
+    setDownloadPercent(0);
+    window.electronAPI.downloadUpdate();
+  }, []);
+
+  const handleInstall = useCallback(() => {
+    window.electronAPI.installUpdate();
+  }, []);
+
+  const handleOpenConfigUrl = useCallback(() => {
+    window.electronAPI.getUpdateUrl().then((url) => {
+      setUpdateUrlInput(url);
+      setConfigUrlVisible(true);
+    });
+  }, []);
+
+  const handleSaveUrl = useCallback(async () => {
+    await window.electronAPI.setUpdateUrl(updateUrlInput.trim());
+    setConfigUrlVisible(false);
+    message.success('更新地址已保存');
+    setUpdateStatus('idle');
+  }, [updateUrlInput]);
+
+  function renderUpdateContent() {
+    switch (updateStatus) {
+      case 'idle':
+        return (
+          <div style={{ textAlign: 'center' }}>
+            <Button type="primary" ghost size="small" onClick={handleCheckUpdate}>
+              <CloudDownloadOutlined /> 检查更新
+            </Button>
+            <div style={{ marginTop: 6 }}>
+              <Button type="link" size="small" onClick={handleOpenConfigUrl}
+                style={{ fontSize: 12, color: '#999' }}>
+                配置更新地址
+              </Button>
+            </div>
+          </div>
+        );
+
+      case 'checking':
+        return (
+          <div style={{ textAlign: 'center' }}>
+            <Spin size="small" />{' '}
+            <Text type="secondary" style={{ fontSize: 13 }}>正在检查更新...</Text>
+          </div>
+        );
+
+      case 'update-available':
+        return (
+          <div style={{ textAlign: 'center' }}>
+            <Text style={{ fontSize: 13 }}>
+              发现新版本 <Text strong style={{ color: '#1677ff' }}>v{updateVersion}</Text>
+            </Text>
+            <div style={{ marginTop: 8 }}>
+              <Button type="primary" size="small" onClick={handleDownload}>
+                <CloudDownloadOutlined /> 下载更新
+              </Button>
+            </div>
+          </div>
+        );
+
+      case 'downloading':
+        return (
+          <div style={{ textAlign: 'center' }}>
+            <Progress
+              percent={downloadPercent}
+              size="small"
+              style={{ margin: 0 }}
+              format={(pct) => `下载中 ${pct}%`}
+            />
+          </div>
+        );
+
+      case 'update-downloaded':
+        return (
+          <div style={{ textAlign: 'center' }}>
+            <Text type="success" style={{ fontSize: 13 }}>
+              更新已就绪，点击安装将重启应用
+            </Text>
+            <div style={{ marginTop: 8 }}>
+              <Button type="primary" size="small" onClick={handleInstall}>
+                立即安装
+              </Button>
+            </div>
+          </div>
+        );
+
+      case 'up-to-date':
+        return (
+          <div style={{ textAlign: 'center' }}>
+            <Text type="success" style={{ fontSize: 13 }}>✓ 已是最新版本</Text>
+          </div>
+        );
+
+      case 'error':
+        return (
+          <div style={{ textAlign: 'center' }}>
+            <Text type="danger" style={{ fontSize: 13 }}>✗ {updateMessage}</Text>
+            <div style={{ marginTop: 8, display: 'flex', justifyContent: 'center', gap: 8 }}>
+              <Button size="small" onClick={handleCheckUpdate}>
+                <ReloadOutlined /> 重试
+              </Button>
+              <Button size="small" onClick={handleOpenConfigUrl}>
+                配置地址
+              </Button>
+            </div>
+          </div>
+        );
+
+      case 'no-url':
+        return (
+          <div style={{ textAlign: 'center' }}>
+            <Text type="warning" style={{ fontSize: 13 }}>未配置更新服务器地址</Text>
+            <div style={{ marginTop: 8 }}>
+              <Button size="small" type="primary" ghost onClick={handleOpenConfigUrl}>
+                去配置
+              </Button>
+            </div>
+          </div>
+        );
+
+      default:
+        return null;
+    }
+  }
 
   if (loading) {
     return <Spin style={{ display: 'block', margin: '80px auto' }} />;
@@ -92,6 +280,10 @@ export default function About() {
             不可以点我哦
           </Tag>
         </div>
+
+        {/* 自动更新 */}
+        <Divider style={{ margin: '12px 0 10px' }} />
+        {renderUpdateContent()}
       </Card>
 
       {/* 关注我 */}
@@ -172,6 +364,27 @@ export default function About() {
           <Paragraph style={{ fontSize: 15, lineHeight: 1.8, margin: '8px 0 0', fontWeight: 700 }}>
             最后就是希望大家可以天天开心，万事如意~
           </Paragraph>
+        </div>
+      </Modal>
+
+      {/* 配置更新地址弹窗 */}
+      <Modal
+        title="配置更新服务器地址"
+        open={configUrlVisible}
+        onOk={handleSaveUrl}
+        onCancel={() => setConfigUrlVisible(false)}
+        okText="保存"
+        cancelText="取消"
+      >
+        <div style={{ padding: '8px 0' }}>
+          <Paragraph type="secondary" style={{ fontSize: 13, marginBottom: 12 }}>
+            请输入存放更新包的 HTTP 服务器地址（需包含最新版 latest.yml 和安装包）。
+          </Paragraph>
+          <Input
+            placeholder="https://example.com/releases"
+            value={updateUrlInput}
+            onChange={(e) => setUpdateUrlInput(e.target.value)}
+          />
         </div>
       </Modal>
     </div>

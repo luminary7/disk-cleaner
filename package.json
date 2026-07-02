@@ -9,7 +9,10 @@
 		"electron:dev": "concurrently \"cross-env BROWSER=none vite\" \"wait-on http://localhost:5173 && cross-env NODE_ENV=development electron .\"",
 		"electron:build": "npm run build && electron-builder",
 		"preview": "vite preview",
-		"verify:rules": "node scripts/verify-rules.js"
+		"verify:rules": "node scripts/verify-rules.js",
+		"publish:github": "npm run build && electron-builder --publish always",
+		"publish:github:dry": "npm run build && electron-builder --publish onTag",
+		"publish:oss": "node scripts/publish-oss.mjs"
 	},
 	"build": {
 		"appId": "com.cdrive.cleaner",
@@ -39,7 +42,8 @@
 			"allowToChangeInstallationDirectory": true,
 			"createDesktopShortcut": "always",
 			"shortcutName": "我的磁盘怎么红红的，是要谈恋爱了吗"
-		}
+		},
+		"publish": ["github"]
 	},
 	"keywords": [
 		"cleaner",
@@ -54,6 +58,7 @@
 		"antd": "^6.5.0",
 		"echarts": "^6.1.0",
 		"echarts-for-react": "^3.0.6",
+		"electron-updater": "^6.8.9",
 		"gsap": "^3.15.0",
 		"react": "^19.2.7",
 		"react-dom": "^19.2.7",
