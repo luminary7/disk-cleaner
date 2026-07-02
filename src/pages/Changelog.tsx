@@ -19,10 +19,33 @@ interface Release {
 
 const releases: Release[] = [
   {
+    version: 'v1.2.1',
+    date: '2026-07-02',
+    title: '批量清理速度大幅提升',
+    isLatest: true,
+    sections: [
+      {
+        title: '⚡ 清理性能优化',
+        items: [
+          '批量清理**跳过冗余的文件系统查询**，直接使用扫描缓存结果（safety/size），避免重复 stat + 目录遍历 + 规则评估',
+          '日志写入改为**批量追加**，避免 200 并发争抢文件句柄',
+          '综合：清理 N 个文件时，**省掉了 N 次 `fs.statSync` + N 次目录遍历 + N 次规则引擎评估**，大目录清理尤其显著',
+        ],
+      },
+      {
+        title: '🔒 安全不变',
+        items: [
+          '路径级别的安全校验（排除列表保护、根目录保护、keep/caution 等级检查）**全部保留**',
+          '仅跳过了扫描阶段已完成的冗余评估，不影响安全决策',
+        ],
+      },
+    ],
+  },
+  {
     version: 'v1.2.0',
     date: '2026-07-01',
     title: '包体积大瘦身 & 多盘符全面支持',
-    isLatest: true,
+    isLatest: false,
     sections: [
       {
         title: '📦 包体积优化',
