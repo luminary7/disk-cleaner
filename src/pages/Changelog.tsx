@@ -21,9 +21,18 @@ const releases: Release[] = [
   {
     version: 'v1.2.1',
     date: '2026-07-02',
-    title: '批量清理速度大幅提升',
+    title: '自动更新上线 & 批量清理大幅提速',
     isLatest: true,
     sections: [
+      {
+        title: '📥 自动更新',
+        items: [
+          '新增**自动更新模块**，启动时自动检测 GitHub Releases 新版本',
+          '关于页面底部新增**「检查更新」**按钮，点一下就知道有没有新版',
+          '有新版本时显示版本号和更新说明，支持**下载进度**展示和**一键安装**',
+          '发布脚本同时支持 GitHub Releases 和 OSS 分发',
+        ],
+      },
       {
         title: '⚡ 清理性能优化',
         items: [
