@@ -157,7 +157,7 @@ function registerIPC() {
         const idx = nextIdx++;
         if (idx >= total) break;
         const item = items[idx];
-        const r = await fileOperator.moveToTrash(item, options);
+        const r = await fileOperator.moveToTrash(item, { ...options, skipValidation: true });
         results[idx] = { ...item, success: r.success, error: r.error };
         completed++;
         if (r.success) {

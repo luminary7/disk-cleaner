@@ -35,6 +35,24 @@ function writeLog(action, filePath, size) {
 }
 
 /**
+ * 批量写入操作日志（一次打开文件写入多条，减少文件 I/O 竞争）
+ * 用于批量清理场景，避免 200 并发各自 appendSync 争抢文件句柄
+ * @param {Array<{ action: string, filePath: string, size: number }>} entries
+ */
+function writeBatchLog(entries) {
+  if (!entries || entries.length === 0) return;
+  try {
+    const timestamp = new Date().toISOString();
+    const lines = entries.map(({ action, filePath, size }) =>
+      `[${timestamp}] ${action} | ${filePath} | ${size} bytes\n`
+    ).join('');
+    fs.appendFileSync(getTodayLogFile(), lines, 'utf-8');
+  } catch {
+    // 静默失败
+  }
+}
+
+/**
  * 读取所有日志文件的内容
  */
 function readLogs() {
@@ -58,4 +76,4 @@ function readLogs() {
   }
 }
 
-module.exports = { writeLog, readLogs, getLogsDir };
+module.exports = { writeLog, writeBatchLog, readLogs, getLogsDir };

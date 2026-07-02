@@ -40,7 +40,8 @@ function getItemSizeAndSafety(item, normalizedPath) {
 /**
  * 将指定文件/文件夹移入回收站，带安全校验
  * @param {string|object} itemOrPath
- * @param {{ allowCaution?: boolean, forceKeep?: boolean }} options
+ * @param {{ allowCaution?: boolean, forceKeep?: boolean, skipValidation?: boolean }} options
+ *        skipValidation — 跳过 fs.stat/evaluate（批量清理时使用已有的扫描结果，大幅提升性能）
  * @returns {{ success: boolean, error?: string }}
  */
 async function moveToTrash(itemOrPath, options = {}) {
@@ -62,6 +63,27 @@ async function moveToTrash(itemOrPath, options = {}) {
     return { success: false, error: `路径受保护: ${normalizedPath}` };
   }
 
+  if (options.skipValidation) {
+    // 快速路径：使用扫描结果中的 safety，跳过文件系统查询（stat + 目录遍历 + rule evaluation）
+    // 这些在扫描阶段已全部完成，无需重复执行
+    const safety = item.safety || 'caution';
+    if (safety === 'keep' && !options.forceKeep) {
+      return { success: false, error: `安全策略阻止删除: ${normalizedPath}` };
+    }
+    if (safety === 'caution' && !options.allowCaution) {
+      return { success: false, error: `谨慎项需要确认后清理: ${normalizedPath}` };
+    }
+    try {
+      await shell.trashItem(normalizedPath);
+      const size = item.size || 0;
+      logger.writeLog('trash', normalizedPath, size);
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  }
+
+  // 完整路径：实时 stat + rule evaluation（单文件删除 / 非扫描来源使用）
   try {
     const { size, safety } = getItemSizeAndSafety(item, normalizedPath);
     if (safety === 'keep' && !options.forceKeep) {
@@ -80,14 +102,81 @@ async function moveToTrash(itemOrPath, options = {}) {
 }
 
 /**
- * 批量移至回收站
+ * 快速批量移至回收站
+ * 利用扫描结果中的 safety/size，跳过冗余的文件系统查询和规则重评估
+ * @param {Array} items - 扫描结果 items（自带 size/safety）
+ * @param {{ allowCaution?: boolean, forceKeep?: boolean }} options
+ * @param {(current: number, total: number) => void} [onProgress]
+ * @returns {Promise<Array>}
  */
-async function moveBatchToTrash(items, options = {}) {
-  const results = [];
-  for (const item of items) {
-    const result = await moveToTrash(item, options);
-    results.push({ ...item, success: result.success, error: result.error });
+async function moveBatchToTrash(items, options = {}, onProgress) {
+  const total = items.length;
+  const results = new Array(total);
+
+  // 阶段1：同步校验（仅路径匹配，无磁盘 I/O）
+  const validItems = [];
+  for (let i = 0; i < total; i++) {
+    const item = items[i];
+    const itemPath = item.path;
+
+    if (!itemPath) {
+      results[i] = { ...item, success: false, error: '缺少文件路径' };
+      continue;
+    }
+
+    const normalizedPath = path.normalize(itemPath);
+
+    if (isRootLikePath(normalizedPath)) {
+      results[i] = { ...item, success: false, error: `禁止清理磁盘根目录: ${normalizedPath}` };
+      continue;
+    }
+    if (ruleEngine.isExcludedPath(normalizedPath)) {
+      results[i] = { ...item, success: false, error: `路径受保护: ${normalizedPath}` };
+      continue;
+    }
+
+    const safety = item.safety || 'caution';
+    if (safety === 'keep' && !options.forceKeep) {
+      results[i] = { ...item, success: false, error: `安全策略阻止删除: ${normalizedPath}` };
+      continue;
+    }
+    if (safety === 'caution' && !options.allowCaution) {
+      results[i] = { ...item, success: false, error: `谨慎项需要确认后清理: ${normalizedPath}` };
+      continue;
+    }
+
+    validItems.push({ index: i, item, normalizedPath });
   }
+
+  // 阶段2：并发执行 shell.trashItem（跳过 stat/evaluate，直接移入回收站）
+  const CONCURRENCY = 200;
+  let completed = 0;
+  let nextIdx = 0;
+  const logEntries = [];
+
+  async function worker() {
+    while (true) {
+      const idx = nextIdx++;
+      if (idx >= validItems.length) break;
+      const { index, item, normalizedPath } = validItems[idx];
+      try {
+        await shell.trashItem(normalizedPath);
+        const size = item.size || 0;
+        logEntries.push({ action: 'trash', filePath: normalizedPath, size });
+        results[index] = { ...item, success: true };
+      } catch (err) {
+        results[index] = { ...item, success: false, error: err.message };
+      }
+      onProgress?.(++completed, total);
+    }
+  }
+
+  const poolSize = Math.min(CONCURRENCY, validItems.length);
+  await Promise.all(Array.from({ length: poolSize }, () => worker()));
+
+  // 批量写入日志（一次文件 I/O 代替 N 次）
+  logger.writeBatchLog(logEntries);
+
   return results;
 }
 
